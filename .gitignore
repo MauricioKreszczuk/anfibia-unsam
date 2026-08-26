@@ -1,19 +1,27 @@
-# Entornos virtuales
+# Entorno virtual
 venv/
 env/
 .env/
 
-# Datos (crudos y procesados)
+# Datos crudos y procesados (se preserva la estructura)
 data/raw/*
-data/processed/*
 !data/raw/.gitkeep
+data/processed/*
 !data/processed/.gitkeep
 
 # Salidas pesadas
 outputs/*
 !outputs/.gitkeep
 
-# Archivos temporales y cachés
+# Formatos de datos por extensión
+*.csv
+*.parquet
+*.json
+*.sql
+*.sqlite
+*.db
+
+# Archivos temporales y notebooks de prueba
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
