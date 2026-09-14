@@ -31,6 +31,25 @@ def load_data():
 
 (tags_global, df_tags_cat, df_tags_top, tags_solapamiento, tags_auto, tags_manual) = load_data()
 
+# Leemos directamente el mapa ID -> Título y URL desde el corpus procesado
+_path_corpus = BASE_DIR / "data" / "processed" / "corpus_anfibia_lematizado.csv"
+
+# Solo leemos ID, title_text y source_url (tarda menos de 0.1s porque filtra columnas)
+_cols_disponibles = pd.read_csv(_path_corpus, nrows=1).columns.tolist()
+_cols_a_cargar = ["ID", "title_text"] + (["source_url"] if "source_url" in _cols_disponibles else [])
+
+_df_titulos = pd.read_csv(_path_corpus, usecols=_cols_a_cargar).drop_duplicates(subset=["ID"])
+
+# Aseguramos el mismo tipo de dato para que el merge sea exacto
+_df_titulos["ID"] = _df_titulos["ID"].astype(int)
+df_tags_cat["ID"] = df_tags_cat["ID"].astype(int)
+
+df_tags_cat = df_tags_cat.merge(_df_titulos, on="ID", how="left")
+
+# Si source_url no estaba en el corpus, usamos la URL canónica de WordPress
+if "source_url" not in df_tags_cat.columns:
+    df_tags_cat["source_url"] = "https://revistaanfibia.com/?p=" + df_tags_cat["ID"].astype(str)
+
 def cargar_html(ruta, height=750):
     if ruta.exists():
         with open(ruta, "r", encoding="utf-8") as f:
@@ -48,41 +67,115 @@ Esta sección examina la cobertura de las etiquetas, su coherencia frente a las 
 
 st.divider()
 
+
 ## ==========================================
 ## SECCIÓN 1: RANKING GLOBAL Y COBERTURA TEMPORAL
 ## ==========================================
-st.subheader("1. Etiquetas por su frecuencia.")
+st.subheader("1. Exploración general de las etiquetas")
 st.write("""
-Mostramos las etiquetas con mayor recurrencia histórica en los artículos.
+Analizamos cómo están distribuidas las etiquetas, cuáles son las más comunes y qué artículos las utilizan.
 """)
 
-top_n_tags = st.slider("Cantidad de etiquetas a mostrar:", 5, 100, 15)
-
+# 1. Top 100 para la tabla del ranking
 df_tags_display = (
-    tags_global.head(top_n_tags)
+    tags_global.head(100)
     .copy()
-    .rename(columns={
-        tags_global.columns[0]: "Etiqueta",
-        tags_global.columns[1]: "Frecuencia"
-    })
+    .reset_index(drop=True)
 )
+df_tags_display.columns = ["Etiqueta", "Frecuencia"]
+df_tags_display.insert(0, "Ranking", range(1, len(df_tags_display) + 1))
 
-st.dataframe(df_tags_display[["Etiqueta", "Frecuencia"]], use_container_width=True, hide_index=True)
+# 2. Todas las etiquetas únicas ordenadas para el buscador
+todas_las_etiquetas = sorted(tags_global[tags_global.columns[0]].dropna().unique().tolist())
+
+# Proporción 1 a 1.4 para balance horizontal
+col_ranking, col_articulos = st.columns([1, 1.4], gap="large")
+
+with col_ranking:
+    st.markdown("##### Top 100 Etiquetas")
+    st.caption("Etíquetas más utilizadas.")
+    st.dataframe(
+        df_tags_display,
+        use_container_width=True,
+        hide_index=True,
+        height=380,
+        column_config={
+            "Ranking": st.column_config.NumberColumn("Posición", width="small", alignment="center"),
+            "Etiqueta": st.column_config.TextColumn("Etiqueta", width="medium", alignment="left"),
+            "Frecuencia": st.column_config.ProgressColumn(
+                "Cantidad de Notas",
+                format="%d",
+                min_value=0,
+                max_value=int(df_tags_display["Frecuencia"].max()),
+            ),
+        }
+    )
+
+with col_articulos:
+    st.markdown("##### Artículos por Etiqueta")
+    
+    # Buscador con autocompletado sobre todo el universo de etiquetas
+    tag_seleccionado = st.selectbox(
+        "Buscar etiqueta:",
+        options=todas_las_etiquetas,
+        index=todas_las_etiquetas.index(df_tags_display["Etiqueta"].iloc[0]) if df_tags_display["Etiqueta"].iloc[0] in todas_las_etiquetas else 0,
+        placeholder="Escribí para buscar sugerencias...",
+        label_visibility="collapsed"
+    )
+
+    if tag_seleccionado:
+        notas_tag = (
+            df_tags_cat[df_tags_cat["tag"] == tag_seleccionado]
+            .drop_duplicates(subset=["ID"])
+            .sort_values(by="post_year", ascending=False)
+            .reset_index(drop=True)
+        )
+        
+        df_notas_display = pd.DataFrame({
+            "Año": notas_tag["post_year"],
+            "Título": notas_tag["title_text"].fillna("Sin título"),
+            "Categoría": notas_tag["categoria_normalizada"],
+            "Enlace": notas_tag["source_url"]
+        })
+
+        st.dataframe(
+            df_notas_display,
+            use_container_width=True,
+            hide_index=True,
+            height=380,
+            column_config={
+                "Año": st.column_config.NumberColumn("Año", format="%d", width="small", alignment="center"),
+                "Título": st.column_config.TextColumn("Título", width="large"),
+                "Categoría": st.column_config.TextColumn("Categoría", width="small"),
+                "Enlace": st.column_config.LinkColumn("Enlace", display_text="Ver", width="small", alignment="center")
+            }
+        )
+    else:
+        st.info("Seleccioná o buscá una etiqueta para listar sus artículos.")
+
+    
+st.caption("Si buscamos por ejemplo Religión, ya con escribir Reli nos aparecen dos etiquetas que deberian ser la misma, esto se explora más adelante.")
 
 st.markdown("#### Cobertura de las Etiquetas")
-st.write("Proporción de articulos que cuentan con al menos una etiqueta frente a las que no.")
-cargar_html(GRAFICOS_DIR / "07_pie_cobertura.html", height=450)
+st.write("Proporción de artículos que cuentan con al menos una etiqueta frente a los que no.")
+cargar_html(GRAFICOS_DIR / "07_pie_cobertura.html", height=420)
+
+st.markdown("Practicamente la mitad de los artículos no llevan ninguna etiqueta. Queriendo ahondar en eso, nos preguntamos si era algo común en el tiempo.")
 
 st.markdown("#### Evolución del Etiquetado en el tiempo")
-st.write("Muestra el volumen anual de los articulos con y sin etiquetas, indicando el porcentaje de cobertura año por año.")
+st.write("Volumen anual de los artículos con y sin etiquetas, detallando la tasa de cobertura año a año.")
 cargar_html(GRAFICOS_DIR / "07_evolucion_etiquetado.html", height=520)  
 
+
 st.divider()
+
 
 ## ==========================================
 ## SECCIÓN 2: ETIQUETAS Y CATEGORÍAS EDITORIALES
 ## ==========================================
 st.subheader("2. Etiquetas vs. Categorías")
+st.markdown("Cruzamos las categorías con las etiquetas para ver cómo se relaciónan:")
+
 
 st.markdown("#### Distribución de Etiquetas por Categoria")
 st.write("""
@@ -92,26 +185,49 @@ cargar_html(GRAFICOS_DIR / "07_distribucion_etiquetas_por_categoria.html", heigh
 
 st.markdown("#### Etiquetas vs. Categorías (Heatmap)")
 st.write("""
-Muestra la distribucion de las Top etiquetas frente a las categorias elegidas. Permite distinguir etiquetas transversales de aquellas confinadas a una única categoría.
+Muestra la cantidad de veces que una etiqueta se repite en articulos de cierta categoria. Queriamos distinguir etiquetas que se usen para más de una categoria.
 """)
 st.caption("Los valores indican la cantidad de artículos únicos en cada intersección.")
 
 cats_disp = df_tags_cat["categoria_normalizada"].unique()
 cats_sel = st.multiselect("Categorías a mostrar:", cats_disp, default=cats_disp)
-top_tags_hm = st.slider("Top etiquetas a cruzar (Categorías):", 5, 50, 15)
+top_tags_hm = st.slider("Cantidad de etiquetas a mostrar (ordenadas de mayor a menor cantidad de artículos):", 5, 50, 15)
 
 if cats_sel:
     top_tags_list = df_tags_cat.groupby("tag")["ID"].nunique().nlargest(top_tags_hm).index
     df_hm = df_tags_cat[(df_tags_cat["tag"].isin(top_tags_list)) & (df_tags_cat["categoria_normalizada"].isin(cats_sel))]
     
+# 1. Obtenemos las top etiquetas (de mayor a menor)
+    top_tags_list = df_tags_cat.groupby("tag")["ID"].nunique().nlargest(top_tags_hm).index.tolist()
+    
+    df_hm = df_tags_cat[(df_tags_cat["tag"].isin(top_tags_list)) & (df_tags_cat["categoria_normalizada"].isin(cats_sel))]
+    
     if not df_hm.empty:
         matriz = pd.crosstab(df_hm["tag"], df_hm["categoria_normalizada"])
-        fig_hm = px.imshow(matriz, text_auto=True, aspect="auto", color_continuous_scale="Blues")
+        
+        # Invertimos la lista para que la más frecuente quede abajo de todo en la matriz
+        orden_abajo = top_tags_list[::-1]
+        matriz = matriz.reindex(index=[t for t in orden_abajo if t in matriz.index])
+
+        fig_hm = px.imshow(
+            matriz,
+            text_auto=True,
+            aspect="auto",
+            color_continuous_scale="Blues",
+            labels=dict(x="Categoría", y="Etiqueta", color="Artículos")
+        )
+
+        # Corregimos el hover y aseguramos que no invierta el eje
+        fig_hm.update_traces(
+            hovertemplate="<b>Etiqueta:</b> %{y}<br><b>Categoría:</b> %{x}<br><b>Artículos:</b> %{z}<extra></extra>"
+        )
+        fig_hm.update_yaxes(autorange=True)
+
         st.plotly_chart(fig_hm, use_container_width=True)
 
 st.markdown("#### Distribución de etiquetas en categorias en el tiempo")
 st.write("""
-Muestra la proporción de las etiquetas predominantes dentro de cada categoría, con opción de segmentar por año específico.
+Una vez más mostramos las etiquetas más comúnes de una categoria, pero ahora agregandole la dimensión del tiempo. Con esto seria mas claro visualizar que etiquetas marcaron cada categoria en cada año.
 """)
 
 anio_sel = st.selectbox(
@@ -168,7 +284,7 @@ for idx, cat in enumerate(cats_unicas):
                 textposition="outside",
                 textinfo="label+percent",
                 textfont=dict(size=10),
-                hovertemplate="<b>%{customdata}</b><br>Notas: %{value} (%{percent})<extra></extra>",
+                hovertemplate="<b>%{customdata}</b><br>Artículos: %{value} (%{percent})<extra></extra>",
                 showlegend=False
             ),
             row=r,
@@ -205,12 +321,14 @@ st.divider()
 ## ==========================================
 st.subheader("3. Etiquetas vs. Tópicos")
 st.write("""
-Cruce entre las etiquetas  y los Tópicos identificados por el modelo.
+Cruce entre las etiquetas  y los Tópicos. Similar al anterior queremos distinguir etiquetas que esten en mas de un Tópico.
+
+Si las etiquetas se encuentran distribuidas en distintos Tópicos entonces estos tienen información rica para representarlas. (Lo usamos más adelante)
 """)
 st.caption("Celdas con valores altos marcan concordancia entre la etiqueta y el tópico; dispersiones horizontales evidencian etiquetas transversales.")
 
-top_tags_t = st.slider("Top etiquetas (Tópicos):", 5, 100, 30)
-top_tops_t = st.slider("Top tópicos:", 5, 50, 10)
+top_tags_t = st.slider("Etíquetas a mostrar:", 5, 100, 20)
+top_tops_t = st.slider("Tópicos a mostrar:", 5, 50, 3)
 
 tt_tags = df_tags_top.groupby("tag")["doc_id"].nunique().nlargest(top_tags_t).index
 tt_tops = df_tags_top.groupby("topic_name")["doc_id"].nunique().nlargest(top_tops_t).index
@@ -222,74 +340,157 @@ if not df_hm_t.empty:
     st.plotly_chart(fig_hm_t, use_container_width=True)
 
 st.divider()
+
+
 ## ==========================================
-## SECCIÓN 4: Propuestas
+## SECCIÓN 4: PROPUESTAS DE CONSOLIDACIÓN Y NORMALIZACIÓN
 ## ==========================================
-st.subheader("4. Propuestas de Consolidación y Normalización")
+st.subheader("4. Etíquetas solapadas")
 st.write("""
-Detección de redundancias y variaciones morfológicas para estandarizar el vocabulario de etiquetas.
+Durante la exploracíon, se identificaron algunas etiquetas repetidas, ya sea por temas ortográficss, variaciones gramaticales, etc. Buscamos automatizar una manera de identificarlas.
 """)
 
-st.markdown("##### Etiquetas por similitud Semántica")
-st.caption("Pares de etiquetas con distribución temática similar según el modelo.")
-df_solap_display = tags_solapamiento.rename(columns={
-    "Tag A": "Etiqueta A",
-    "Tag B": "Etiqueta B",
-    "Similitud_Coseno_Prob_Topicos": "Similitud Temática"
-})
-
-with st.expander("Metodología: Detección del solapamiento"):
-    st.markdown("""
-    * Cada nota tiene un vector de probabilidades continuas sobre todos los tópicos del modelo. Al promediar los vectores de todas las notas asignadas a una etiqueta, se obtiene su perfil temático medio.
-    * **Similitud Coseno:** Se evalúa qué tan paralelos son los perfiles de dos términos en el espacio multidimensional de tópicos.
-    * **Criterio de corte:** Se muestran pares con una correlación $\ge 0.85$. Una similitud alta indica que ambas etiquetas se aplican sobre artículos con el mismo núcleo conceptual, sugiriendo redundancia temática o términos sinónimos en la redacción.
-    """)
-st.dataframe(df_solap_display, use_container_width=True, hide_index=True)
-
-st.markdown("##### Fusiones Recomendadas")
-st.caption("Casos directos de lematización, tildes, mayúsculas o variantes de número (singular/plural).")
+# --------------------------------------------------
+# 1. FUSIONES AUTOMÁTICAS
+# --------------------------------------------------
+st.markdown("#### 1. Fusiones Recomendadas (Automáticas)")
+st.write("""
+Casos donde consideramos la unificación de etíquetas variantes con seguridad. Pues cumple con algunos de los umbrales de los análisis que les realizamos:
+""")
 
 df_auto_display = tags_auto.rename(columns={
-    "Tag Variante": "Variante Detectada",
-    "Frecuencia Variante": "Uso Variante",
-    "Tag Canónico": "Etiqueta Sugerida (Canónica)",
-    "Frecuencia Canónico": "Uso Sugerida",
+    "Tag Canónico": "Canónica",
+    "Frecuencia Canónico": "Freq. Canónica",
+    "Tag Variante": "Variante",
+    "Frecuencia Variante": "Freq. Variante",
     "Similitud Léxica": "Similitud Léxica",
     "Es Diacrítico": "Es Tilde/Acento",
     "Mismo Lema": "Mismo Lema (Singular/Plural)"
 })
 st.dataframe(df_auto_display, use_container_width=True, hide_index=True)
 
-with st.expander("Metodología: ¿Cómo se determinan las fusiones y sus columnas?"):
+with st.expander("Nota: Explicacón de las columnas y criterio de elección del canónico"):
     st.markdown("""
-    * **Criterio de prevalencia:** Para decidir cuál queda como forma canónica se aplican tres reglas sucesivas:
-        1. *Limpieza de sintaxis:* Las versiones sin numeral (`#`) desplazan a las que llevan hashtag (`#Eaaf` $\\rightarrow$ `Eaaf`).
-        2. *Prevalencia ortográfica:* La forma acentuada válida desplaza a la que no tiene tilde (`México` $\\rightarrow$ `Mexico`).
-        3. *Frecuencia histórica:* En el resto de los casos, la forma con mayor volumen de notas absorbe a la minoritaria.
-    * **Es Tilde/Acento (`Es Diacrítico`):** Indica si ambas cadenas son idénticas al remover los acentos ortográficos vía Unicode `NFKD`.
-    * **Mismo Lema (Singular/Plural):** Validación lingüística con **spaCy** que comprueba si comparten raíz morfológica (ej. `Cuerpo` y `Cuerpos`).
-    * **Similitud Léxica:** Coeficiente de 0 a 1 (*Gestalt Pattern Matching*) que mide el parecido superficial de caracteres entre las cadenas.
-    * **Capa de seguridad semántica:** Para habilitar la fusión automática, el par debe tener equivalencia gramatical indiscutible o superar un umbral de coincidencia léxica $\\ge 0.93$ respaldado por embeddings ($\ge 0.85$), evitando falsos positivos como `Periodismo` / `Peronismo`.
-    """)
+    ##### ¿Qué significa cada columna?
+    * **Canónica:** La recomendada para conservar.
+    * **Freq. Canónica:** Cantidad de artículos donde se usa la etiqueta canónica.
+    * **Variante:** La etiqueta que debería absorberse.
+    * **Freq. Variante:** Cantidad de artículos donde aparece la variante.
+    * **Similitud Léxica:** Coeficiente de 0 a 1 según la coincidencia de caracteres entre ambas palabras.
+    * **Es Tilde/Acento:** `True` si solo difieren por un acento ortográfico (*Mexico* vs. *México*).
+    * **Mismo Lema (Singular/Plural):** `True` si comparten el mismo lema (ej. lema corriendo, corrió → correr).
+    * **Similitud Semántica:** Coeficiente de 0 a 1 que mide la similitud mediante *embeddings* (representación vectorial númerica de las etíquetas). Evalúa el contexto o significado, ayudandonos a diferencias etíquetas escritas parecido pero con sentidos opuestos (ej. *Periodismo* vs. *Peronismo*).
 
-st.markdown("##### Casos para Revisión Editorial")
-st.caption("Términos próximos conceptualmente donde la unificación requiere definir un criterio de redacción.")
+    ##### ¿Cómo se define cuál queda como canónica?
+    1. **Sintaxis:** La forma sin `#` sobre la que tiene hashtag (`#Eaaf` $\\rightarrow$ `Eaaf`).
+    2. **Ortografía:** La forma con tilde válida sobre la que no la lleva (`Mexico` $\\rightarrow$ `México`).
+    3. **Frecuencia:** Si empatan en las reglas anteriores, la variante con más notas es la elegida.
+
+
+    ##### ¿Qué condiciones debe cumplir un par de etíquetas para aparecer en esta tabla?
+    Para que una etiqueta sea candidata a unificacíon automática y no genere falsos positivos, debe cumplir **al menos una** de estas condiciones:
+    * Ser idénticas salvo por la presencia o ausencia de tildes (`Es Tilde/Acento = True`).
+    * Compartir exactamente el mismo lema (`Mismo Lema = True`, ej. singular y plural: Violencia, Violencias).
+    * Superar una **similitud léxica $\ge 0.93$** (escritura casi igual) respaldada obligatoriamente por una **similitud semántica $\ge 0.85$**.
+    """)
+    
+
+# --------------------------------------------------
+# 2. CASOS PARA REVISIÓN EDITORIAL
+# --------------------------------------------------
+st.markdown("#### 2. Casos para Revisión ")
+st.write("""
+Del análisis anterior tambien guardamos las etíquetas que no cumplen con las condiciones para la unificación automática con toda seguridad, pero se consideran validas para una revisión manual.""")
 
 df_manual_display = tags_manual.rename(columns={
     "Tag Variante": "Etiqueta A",
     "Frecuencia Variante": "Uso A",
     "Tag Canónico": "Etiqueta B",
     "Frecuencia Canónico": "Uso B",
-    "Similitud Léxica": "Similitud Léxica",
-    "Similitud Semántica": "Similitud Semántica",
     "Es Diacrítico": "Es Tilde/Acento",
-    "Mismo Lema": "Mismo Lema"
+    "Mismo Lema": "Mismo Lema",
+    "Similitud Léxica": "Similitud Léxica",
+    "Similitud Semántica": "Similitud Semántica"
 })
 st.dataframe(df_manual_display, use_container_width=True, hide_index=True)
 
-with st.expander("Criterio editorial: ¿Por qué estos casos requieren supervisión humana?"):
+# with st.expander("Nota: Criterio por el cual no fueron consideras para la unificación automatica pero si para revisión."):
+#     st.markdown(""" """)
+
+# --------------------------------------------------
+# 3. SOLAPAMIENTO TEMÁTICO VÍA TÓPICOS
+# --------------------------------------------------
+st.markdown("#### 3. Etiquetas Similares por Tópicos")
+st.write("""
+Una de las opciones que trabajamos mientras construiamos las metricas presentadas fue el utilizar los Tópicos de los artículos.
+No lo terminamos usando para ello porque en general las etíquetas no significaban lo mismo. Pero, los contextos en los que se usan si son similares, entonces nos parecio interesante de mostrar.
+""")
+
+df_solap_display = tags_solapamiento.rename(columns={
+    "Tag A": "Etiqueta A",
+    "Tag B": "Etiqueta B",
+    "Similitud_Coseno_Prob_Topicos": "Similitud"
+})
+st.dataframe(df_solap_display, use_container_width=True, hide_index=True)
+
+with st.expander("Metodología y Métricas"):
     st.markdown("""
-    * **Discrepancia léxica vs. conceptual:** Son términos que superaron el umbral de escritura similar y comparten contexto en embeddings (`paraphrase-multilingual-MiniLM-L12-v2`, $\\ge 0.70$), pero no son equivalencias gramaticales exactas (no son meras tildes ni plurales).
-    * **Similitud Semántica:** Mide la cercanía angular entre los vectores densos de ambas palabras. Permite evaluar si dos términos refieren al mismo concepto de fondo o a campos afines.
-    * **Decisión de la redacción:** Se listan aquí porque presentan relaciones de **sinonimia parcial** o **jerarquía** (un término específico vs. uno amplio). La decisión de unificarlos bajo un único tag canónico o preservarlos como categorías independientes depende de la política editorial del medio.
+    * **Vectores de tópicos:** Cada artículo tiene un vector que indica qué proporción le corresponde de cada tópico del modelo.
+    * **Vector promedio de la etiqueta:** Promediamos los vectores de todas los artículos que llevan una etiqueta determinada, quedando un vector promedio de los tópicos para esa etíqueta.
+    * **Similitud coseno:** Calculamos la correlación entre los perfiles de cada par de etiquetas. Mostramos pares con similitud $\ge 0.85$.
+    * **Interpretación:** Un valor alto indica que ambas etiquetas se aplican sobre artículos con contextos semánticos similares, puramente ortográfico no llega a ver.
     """)
+
+st.write("")
+st.write("Buscar Similares a una etíqueta especifica")
+# Universo de etiquetas que tienen al menos una relación de solapamiento
+tags_con_similares = sorted(
+    set(df_solap_display["Etiqueta A"].dropna()).union(set(df_solap_display["Etiqueta B"].dropna()))
+)
+
+tag_especifica = st.selectbox(
+    "Seleccioná una etiqueta:",
+    options=tags_con_similares,
+    index=495 if tags_con_similares else None,
+    placeholder="Escribí para buscar...",
+    label_visibility="collapsed"
+)
+
+if tag_especifica:
+    # Filtramos donde aparezca en A o en B
+    mask = (df_solap_display["Etiqueta A"] == tag_especifica) | (df_solap_display["Etiqueta B"] == tag_especifica)
+    df_filtrado = df_solap_display[mask].copy()
+
+    # Mapeamos para quedarnos con la contraparte y su similitud
+    relacionadas = []
+    for _, row in df_filtrado.iterrows():
+        etiqueta_vecina = row["Etiqueta B"] if row["Etiqueta A"] == tag_especifica else row["Etiqueta A"]
+        relacionadas.append({
+            "Etiqueta Similar": etiqueta_vecina,
+            "Similitud Temática": row["Similitud"]
+        })
+
+    df_vecinas = pd.DataFrame(relacionadas).sort_values(by="Similitud Temática", ascending=False).reset_index(drop=True)
+
+    st.dataframe(
+        df_vecinas,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Etiqueta Similar": st.column_config.TextColumn("Etiquetas Similares", width="large"),
+            "Similitud Temática": st.column_config.ProgressColumn(
+                "Similitud",
+                format="%.3f",
+                min_value=0.0,
+                max_value=1.0,
+                width="medium"
+            ),
+        }
+    )
+# # Buscamos coincidencias aproximadas
+# coincidencias = [
+#     (i, tag) for i, tag in enumerate(tags_con_similares) 
+#     if "messi" in tag.lower()
+# ]
+
+# st.write("Coincidencias encontradas (Índice, Nombre):", coincidencias)

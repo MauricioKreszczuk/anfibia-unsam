@@ -166,7 +166,8 @@ st.write("""
 Graficamos la frecuencia de cada Tópico según su fecha.
 Los marcadores en forma de diamante (◆) señalan el **máximo histórico** de cada tópico.
 """)
-st.caption("Al pasar el cursor sobre los picos, se muestran los articulos representativos de ese pico.")
+st.caption("Al pasar el cursor sobre los picos, se muestran los articulos representativos de ese pico." \
+"Se pueden seleccionar los Tópicos a mostrar en las leyendas de la derecha.")
 
 cargar_html(GRAFICOS_DIR / "02_evolucion_topicos_completa.html", height=780)
 
