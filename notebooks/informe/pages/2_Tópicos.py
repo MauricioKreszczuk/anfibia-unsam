@@ -17,7 +17,7 @@ GRAFICOS_DIR = DATA_DIR / "graficos"
 # ==========================================
 @st.cache_data
 def load_data():
-    topicos_info = pd.read_csv(DATA_DIR / "topicos_info_centralizada.csv")
+    topicos_info = pd.read_csv(DATA_DIR / "topicos_info.csv")
     return topicos_info
 
 topicos_info = load_data()

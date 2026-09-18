@@ -12,14 +12,17 @@ st.set_page_config(page_title="Análisis de Artículos", layout="wide")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = BASE_DIR / "data" / "streamlit"
 
+DIR_WC_HIST = DATA_DIR / "wordclouds_categoria_global"
+DIR_WC_TEMP = DATA_DIR / "wordclouds_categoria_periodo"
+
 ## ==========================================
 ## CARGA DE DATOS CACHEADA
 ## ==========================================
 @st.cache_data
 def load_data():
     cat_counts = pd.read_csv(DATA_DIR / "category_counts.csv")
-    wc_idx = pd.read_csv(DATA_DIR / "wordclouds_by_category_index.csv")
-    wc_temp_idx = pd.read_csv(DATA_DIR / "wordclouds_by_category_period_index.csv")
+    wc_idx = pd.read_csv(DATA_DIR / "wordclouds_categoria_index.csv")
+    wc_temp_idx = pd.read_csv(DATA_DIR / "wordclouds_categoria_periodo_index.csv")
     vocab = pd.read_csv(DATA_DIR / "bow_vocabulary.csv")
     return cat_counts, wc_idx, wc_temp_idx, vocab
 
@@ -46,7 +49,6 @@ with st.expander("Ver detalles del proceso de limpieza y preparación", expanded
         st.write("• **Republicaciones:** Se filtraron artículos duplicados.")
         st.write("• **Idioma:** Se conservaron únicamente publicaciones en español.")
         st.write("Cantidad de articulos:")
-        # Tarjetas rápidas de volumen
         m1, m2 = st.columns(2)
         with m1:
             st.metric("Antes", "3.622")
@@ -67,18 +69,14 @@ with st.expander("Ver detalles del proceso de limpieza y preparación", expanded
 
 st.divider()
 
-
 ## ==========================================
 ## SECCIÓN 1: FRECUENCIA DE PALABRAS (BAG OF WORDS)
 ## ==========================================
-import plotly.express as px
-
 st.subheader("1. Frecuencia de Palabras (Bag of Words)")
 st.write("Explorador del vocabulario normalizado del archivo. Permite analizar la cantidad total de apariciones de cada palabra y su presencia a lo largo de los distintos artículos.")
 
 col_izq, col_der = st.columns(2)
 
-# Mapeo y selección de columnas para visualización clara
 cols_renombradas = {
     "term": "Palabra",
     "document_frequency": "Presencia en Artículos",
@@ -112,21 +110,21 @@ with col_izq:
     )
     
     fig_bow.update_layout(
-            title={
-                "text": "Top 20 Palabras Más Frecuentes",
-                "x": 0.5,
-                "xanchor": "center",
-                "yanchor": "top"
-            },
-            xaxis_title="Apariciones Totales",
-            yaxis_title="",
-            coloraxis_showscale=False,
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.2)"),
-            margin=dict(l=10, r=40, t=50, b=10),
-            height=500
-        )
+        title={
+            "text": "Top 20 Palabras Más Frecuentes",
+            "x": 0.5,
+            "xanchor": "center",
+            "yanchor": "top"
+        },
+        xaxis_title="Apariciones Totales",
+        yaxis_title="",
+        coloraxis_showscale=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.2)"),
+        margin=dict(l=10, r=40, t=50, b=10),
+        height=500
+    )
     st.plotly_chart(fig_bow, use_container_width=True)
 
 with col_der:
@@ -153,7 +151,6 @@ df_cat_sorted = cat_counts.rename(columns={
     "documents": "Artículos"
 }).sort_values(by="Artículos", ascending=True)
 
-# Cálculo de altura dinámica según la cantidad de filas para que no se aprieten
 altura_grafico = max(380, len(df_cat_sorted) * 35)
 
 fig_cat = px.bar(
@@ -193,9 +190,7 @@ fig_cat.update_layout(
         gridcolor="rgba(156, 163, 175, 0.2)",
         zeroline=False
     ),
-    yaxis=dict(
-        tickfont={"size": 13}
-    ),
+    yaxis=dict(tickfont={"size": 13}),
     margin=dict(l=10, r=60, t=50, b=20),
     height=altura_grafico
 )
@@ -210,17 +205,15 @@ st.divider()
 st.subheader("3. Artículos en en el Tiempo")
 st.write("Evolución del volumen de artículos publicados por año a lo largo de los años.")
 
-# Cargamos los atributos guardados en el pipeline
 @st.cache_data
 def load_attributes():
-    df_attrs = pd.read_csv(DATA_DIR / "bow_document_attributes.csv", usecols=["doc_id", "post_date"])
+    df_attrs = pd.read_csv(DATA_DIR / "articulos.csv", usecols=["doc_id", "post_date"])
     df_attrs["post_date"] = pd.to_datetime(df_attrs["post_date"], errors="coerce")
     df_attrs["post_year"] = df_attrs["post_date"].dt.year
     return df_attrs.dropna(subset=["post_year"])
 
 df_attr = load_attributes()
 
-# Agrupamos conteo por año
 df_anual = (
     df_attr.groupby("post_year")
     .size()
@@ -269,9 +262,8 @@ st.plotly_chart(fig_tiempo, use_container_width=True)
 
 st.divider()
 
-
 ## ==========================================
-## SECCIÓN 2: NUBES DE PALABRAS (ESTÁTICA Y TEMPORAL)
+## SECCIÓN 4: NUBES DE PALABRAS (ESTÁTICA Y TEMPORAL)
 ## ==========================================
 st.subheader("Nubes de Palabras")
 st.write("""
@@ -286,7 +278,6 @@ Nota: Únicamente creamos nubes para aquellas ventanas de tiempo que alcancen al
 
 col_ctrl1, col_ctrl2 = st.columns(2)
 
-# Lista base ordenada por volumen histórico de mayor a menor
 categorias_por_volumen = list(cat_counts["category"].unique())
 
 ## --- Controles Izquierda (Histórica) ---
@@ -303,7 +294,6 @@ with col_ctrl2:
     
     sub_col_cat, sub_col_per = st.columns(2)
     with sub_col_cat:
-        # Filtramos respetando el mismo orden de volumen
         cats_con_stat = set(wc_temp_idx[wc_temp_idx["enough_statistics"] == True]["category"].unique())
         cats_temp = [c for c in categorias_por_volumen if c in cats_con_stat]
         cat_temp_elegida = st.selectbox("Categoría:", cats_temp, key="cat_temp")
@@ -315,17 +305,11 @@ with col_ctrl2:
         ]["period"].unique())
         periodo_elegido = st.selectbox("Período:", periodos_disp, key="per_temp")
 
-# --- Directorios de imágenes locales a data/streamlit ---
-DIR_WC_HIST = DATA_DIR / "wordclouds_by_category_lematizado"
-DIR_WC_TEMP = DATA_DIR / "wordclouds_by_category_period"
-
-# --- Renderizado de Imágenes Alineadas ---
 col_img1, col_img2 = st.columns(2)
 
 with col_img1:
     if cat_elegida:
         fila_hist = wc_idx[wc_idx["category"] == cat_elegida]
-        # Soporta tanto la columna nueva 'filename' como la vieja 'path'
         nombre_archivo = fila_hist["filename"].values[0] if "filename" in fila_hist.columns else Path(fila_hist["path"].values[0]).name
         ruta_img = DIR_WC_HIST / nombre_archivo
 
@@ -349,12 +333,3 @@ with col_img2:
             st.error(f"Imagen no encontrada: {nombre_archivo_t}")
 
 st.divider()
-
-# ## ==========================================
-# ## SECCIÓN 3: EXPLORADOR DE VOCABULARIO NORMALIZADO (BOW)
-# ## ==========================================
-# st.subheader("Vocabulario Consolidado del Archivo")
-# st.write("""
-# Listado de términos normalizados presentes en el archivo. Permite consultar cuántas veces se escribió una palabra en total y en cuántos artículos distintos aparece.
-# """)
-# st.dataframe(vocab, use_container_width=True)

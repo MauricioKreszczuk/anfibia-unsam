@@ -22,21 +22,14 @@ GRAFICOS_DIR = DATA_DIR / "graficos"
 ## ==========================================
 @st.cache_data
 def load_data():
-    tags_global = pd.read_csv(DATA_DIR / "tag_counts_global.csv")
-    df_tags_cat = pd.read_csv(DATA_DIR / "df_tags_vs_categorias_base.csv")
-    df_tags_top = pd.read_parquet(DATA_DIR / "df_tags_vs_topicos_base.parquet")
+    tags_global = pd.read_csv(DATA_DIR / "tag_counts.csv")
+    df_tags_cat = pd.read_csv(DATA_DIR / "tags_vs_categorias.csv")
+    df_tags_top = pd.read_parquet(DATA_DIR / "tags_vs_topicos.parquet")
     tags_solapamiento = pd.read_csv(DATA_DIR / "tags_solapamiento_prob_topicos.csv")
     tags_auto = pd.read_csv(DATA_DIR / "tags_fusiones_automaticas.csv")
     tags_manual = pd.read_csv(DATA_DIR / "tags_revision_manual.csv")
-    df_titulos = pd.read_csv(DATA_DIR / "diccionario_titulos_url.csv")
     
-    # Casteo explícito de tipos antes del cruce
-    df_titulos["ID"] = df_titulos["ID"].astype(int)
-    df_tags_cat["ID"] = df_tags_cat["ID"].astype(int)
-    
-    df_tags_cat = df_tags_cat.merge(df_titulos, on="ID", how="left")
-    
-    # Fallback por si algún registro no tenía source_url
+    # Fallback preventivo por si algún registro no tuviera source_url
     if "source_url" not in df_tags_cat.columns:
         df_tags_cat["source_url"] = "https://revistaanfibia.com/?p=" + df_tags_cat["ID"].astype(str)
         
