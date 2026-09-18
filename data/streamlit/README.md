@@ -1,8 +1,8 @@
 # Estructura de Datos para Streamlit
 
-Este directorio almacena los datos consolidados y precalculados requeridos para la ejecución de (`notebooks/informe/`). 
+Este directorio almacena los datos consolidados y precalculados requeridos para la ejecución del dashboard (`notebooks/informe/`). 
 
-No trabajamos con normalización de tablas al ser datos de una cantidad pequeña de filas.
+No trabajamos con normalización de tablas al ser datos de una cantidad acotada de filas, priorizando la lectura directa y la velocidad de carga.
 
 ---
 
@@ -10,7 +10,12 @@ No trabajamos con normalización de tablas al ser datos de una cantidad pequeña
 
 * **`category_counts.csv`**
   * **Qué es:** Conteo agregado de artículos por categoría editorial normalizada.
-  * **Uso:** Tablas resumen y visualizaciones iniciales de distribución editorial.
+  * **Uso:** Tablas resumen y gráfico horizontal de volumen por categoría.
+
+* **`bow_vocabulary.csv`**
+  * **Qué es:** Vocabulario completo consolidado y lematizado con métricas de frecuencia.
+  * **Columnas:** `term`, `document_frequency`, `term_frequency`.
+  * **Uso:** Gráfico del Top 20 de términos más frecuentes y buscador de palabras clave.
 
 * **`wordclouds_categoria_index.csv`**
   * **Qué es:** Índice relacional entre cada categoría editorial y su correspondiente archivo PNG generado.
@@ -31,7 +36,7 @@ No trabajamos con normalización de tablas al ser datos de una cantidad pequeña
 ## 2_Topicos.py
 
 * **`topicos_info.csv`**
-  * **Qué es:** Ficha centralizada de los tópicos extraídos por el modelo BERTopic híbrido.
+  * **Qué es:** Ficha técnica centralizada de los tópicos extraídos por el modelo BERTopic híbrido.
   * **Columnas:** `Topic`, `Name`, `Docs`, `% Corpus`, `Coherencia_NPMI`, `Articulos_Representativos`, `Tagline_Representativo`, `URL_Articulo`.
   * **Uso:** Tabla general interactiva, métricas de volumen, palabras clave y links al artículo más cercano al centroide de cada tema.
 
@@ -83,7 +88,7 @@ No trabajamos con normalización de tablas al ser datos de una cantidad pequeña
 * **`articulos.csv`**
   * **Qué es:** El archivo maestro de documentos (1 fila = 1 artículo estrictamente).
   * **Columnas:** `doc_id`, `ID`, `title_text`, `source_url`, `tagline`, `post_tag`, `post_date`, `topic`, `topic_label`, `umap_sem_x`, `umap_sem_y`, `umap_tem_x`, `umap_tem_y`.
-  * **Uso:** Catálogo principal del buscador de artículos, información de contexto (título, bajada, fecha, URL), asignación de tópicos y coordenadas de dispersión 2D para los mapas semántico y temático.
+  * **Uso:** Catálogo principal del buscador de artículos, información de contexto (título, bajada, fecha, URL), asignación de tópicos, gráfico temporal en `1_Articulos.py` y coordenadas 2D para los mapas semántico y temático.
 
 * **`doc_topic_dist.npy`**
   * **Qué es:** Matriz NumPy densa de flotantes ($N \times K$) con la distribución suave de tópicos por documento.
