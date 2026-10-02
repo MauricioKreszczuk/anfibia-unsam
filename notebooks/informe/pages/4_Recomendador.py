@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import random
 from sklearn.metrics.pairwise import cosine_similarity
 from pathlib import Path
 
@@ -49,11 +50,38 @@ with st.expander("Metodología: ¿Cómo calcula la similitud?"):
     * **Proyección UMAP:** Como es imposible graficar vectores de múltiples dimensiones, usamos UMAP para comprimir los datos a 2D.
     """)
 
-opciones_articulos = df_rec["doc_id"].astype(str) + " - " + df_rec["title_text"]
-articulo_sel = st.selectbox("Buscar artículo por ID o Título:", opciones_articulos)
-target_id = int(articulo_sel.split(" - ")[0])
+# opciones_articulos = df_rec["doc_id"].astype(str) + " - " + df_rec["title_text"]
+# articulo_sel = st.selectbox("Buscar artículo por ID o Título:", opciones_articulos)
+# target_id = int(articulo_sel.split(" - ")[0])
 
-# Datos del artículo elegido
+# # Datos del artículo elegido
+# target_row = df_rec[df_rec["doc_id"] == target_id].iloc[0]
+
+import random
+
+opciones_articulos = (df_rec["doc_id"].astype(str) + " - " + df_rec["title_text"]).tolist()
+
+# 1. Si no hay nada seleccionado aún, inicializamos con el primero
+if "selector_articulo" not in st.session_state:
+    st.session_state["selector_articulo"] = opciones_articulos[0]
+
+# 2. Si tocan el botón, cambiamos directamente el valor guardado
+col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
+
+with col2:
+    if st.button("🎲 Al azar", use_container_width=True):
+        st.session_state["selector_articulo"] = random.choice(opciones_articulos)
+        st.rerun()
+
+# 3. El selectbox lee y escribe directamente en esa clave
+with col1:
+    articulo_sel = st.selectbox(
+        "Buscar artículo por ID o Título:",
+        options=opciones_articulos,
+        key="selector_articulo"
+    )
+
+target_id = int(articulo_sel.split(" - ")[0])
 target_row = df_rec[df_rec["doc_id"] == target_id].iloc[0]
 
 def graficar_constelacion(target_id, recomendados_ids, df_completo, col_x, col_y, titulo, opacidad_fondo=0.45):

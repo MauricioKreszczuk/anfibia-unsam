@@ -1,6 +1,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
+import plotly.express as px       
+import plotly.graph_objects as go 
 from pathlib import Path
 
 st.set_page_config(page_title="Modelado de Tópicos - Revista Anfibia", layout="wide")
@@ -18,9 +20,23 @@ GRAFICOS_DIR = DATA_DIR / "graficos"
 @st.cache_data
 def load_data():
     topicos_info = pd.read_csv(DATA_DIR / "topicos_info.csv")
-    return topicos_info
+    
+    df_timeline = pd.read_csv(DATA_DIR / "timeline_topicos.csv")
+    df_timeline["Fecha"] = pd.to_datetime(df_timeline["Fecha"])
+    
+    df_mapa = pd.read_csv(DATA_DIR / "mapa_topicos.csv") 
+    
+    return topicos_info, df_timeline, df_mapa
 
-topicos_info = load_data()
+topicos_info, df_timeline, df_mapa = load_data()
+
+topicos_disponibles = df_timeline[["Topic", "clean_name"]].drop_duplicates().sort_values("Topic")
+mapeo_nombres = dict(zip(topicos_disponibles["Topic"], topicos_disponibles["clean_name"]))
+TODOS_LOS_TOPICOS = topicos_disponibles["Topic"].tolist()
+
+# --- MAPA DE COLORES GLOBAL Y FIJO ---
+paleta_global = px.colors.qualitative.Alphabet
+MAPA_COLORES_GLOBAL = {t_id: paleta_global[i % len(paleta_global)] for i, t_id in enumerate(sorted(TODOS_LOS_TOPICOS))}
 
 def cargar_html(ruta, height=750):
     if ruta.exists():
@@ -166,11 +182,112 @@ st.write("""
 Graficamos la frecuencia de cada Tópico según su fecha.
 Los marcadores en forma de diamante (◆) señalan el **máximo histórico** de cada tópico.
 """)
-st.caption("Al pasar el cursor sobre los picos, se muestran los articulos representativos de ese pico." \
-"Se pueden seleccionar los Tópicos a mostrar en las leyendas de la derecha.")
+st.caption("Al pasar el cursor sobre los picos, se muestran los articulos representativos de ese pico.")
 
-cargar_html(GRAFICOS_DIR / "02_evolucion_topicos_completa.html", height=780)
+st.caption("Podés usar la opción **`Select all`** adentro del menú para ver todos los tópicos a la vez, o tocar la **`x`** a la derecha de la caja para limpiar todos.")
 
+# --- LÓGICA DE SELECCIÓN ---
+paleta = px.colors.qualitative.Alphabet
+# Asignamos a cada ID de tópico un color fijo de la paleta
+mapa_colores_fijo = {t_id: paleta[i % len(paleta)] for i, t_id in enumerate(sorted(TODOS_LOS_TOPICOS))}
+
+
+
+
+# Por defecto mostramos los primeros 3 tópicos
+topicos_default = topicos_disponibles["Topic"].head(3).tolist()
+
+topicos_seleccionados = st.multiselect(
+    "Seleccioná los tópicos a comparar:",
+    options=topicos_disponibles["Topic"].tolist(),
+    default=topicos_default,
+    format_func=lambda t_id: f"{t_id}: {mapeo_nombres.get(t_id, '')}"
+)
+
+# --- CREACIÓN DEL GRÁFICO DINÁMICO ---
+if not topicos_seleccionados:
+    st.info("Elegí al menos un tópico para visualizar el gráfico.")
+else:
+    fig = go.Figure()
+    colors = px.colors.qualitative.G10
+
+    for idx, t_id in enumerate(topicos_seleccionados):
+        c = MAPA_COLORES_GLOBAL[t_id]
+        df_t = df_timeline[df_timeline["Topic"] == t_id].sort_values("Fecha")
+        clean_name = mapeo_nombres.get(t_id, f"Tópico {t_id}")
+
+        # Traza de la Línea Continua
+        fig.add_trace(go.Scatter(
+            x=df_t["Fecha"],
+            y=df_t["Frecuencia"],
+            mode="lines",
+            name=clean_name,
+            legendgroup=f"g{t_id}",
+            line=dict(color=c, width=3),
+            customdata=df_t["hover_linea"],
+            hovertemplate=(
+                f"<b>{clean_name}</b><br>"
+                "Fecha: %{x|%Y-%m}<br>"
+                "Artículos: %{y}"
+                "%{customdata}<extra></extra>"
+            )
+        ))
+
+        # Traza de los Rombos (Máximos Históricos)
+        df_max = df_t[df_t["Es_Maximo"] == True]
+        if not df_max.empty:
+            fig.add_trace(go.Scatter(
+                x=df_max["Fecha"],
+                y=df_max["Frecuencia"],
+                mode="markers",
+                name=f"Máximo - {clean_name}",
+                legendgroup=f"g{t_id}",
+                showlegend=False,
+                marker=dict(size=12, color=c, symbol="diamond", line=dict(width=1.5, color="#111")),
+                customdata=df_max["hover_rombo"],
+                hovertemplate=(
+                    f"<b> Máximo Histórico: {clean_name}</b><br>"
+                    "Fecha: %{x|%Y-%m}<br>"
+                    "Artículos: %{y}<br>"
+                    "<b>Artículos representativos:</b>%{customdata}"
+                    "<extra></extra>"
+                )
+            ))
+
+    # Diseño del Gráfico corregido
+    fig.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#fff",
+        height=650,
+        font=dict(family="Arial, sans-serif", size=14, color="#333"), 
+        hovermode="closest",
+        hoverlabel=dict(bgcolor="white", font_size=14, font_family="Arial"),
+        legend=dict(
+            title="<b>Tópicos referenciados</b>", 
+            orientation="v", 
+            yanchor="top", 
+            y=1, 
+            xanchor="left", 
+            x=1.02 
+        ),
+        margin=dict(t=20, b=20, r=200) 
+    )
+    
+    # Eje X limpio: 
+    fig.update_xaxes(
+        showgrid=True, 
+        gridcolor="#ebebeb", 
+        tickformat="%Y", 
+        dtick="M12" 
+    )
+    fig.update_yaxes(
+        showgrid=True, 
+        gridcolor="#ebebeb",
+        title="Número de Artículos (por período)"
+    )
+
+    # CRÍTICO: theme=None apaga la interferencia de Streamlit sobre Plotly
+    st.plotly_chart(fig, use_container_width=True, theme=None)
 
 with st.expander("Detalles: Metodológia para calcular los articulos de cada pico"):
     st.markdown("""
@@ -192,13 +309,91 @@ st.divider()
 st.subheader("4. Mapa de los artículos (Proyección 2D)")
 st.write("""
 Proyección bidimensional de los artículos.
-Cada punto representa un artículo publicado, su ubicacion esta dada por el vector representativo de cada artículo (embeddings). Entonces los articulos que sean cercanos seran similares (porque sus representaciónes vectoriales lo son).
+Cada punto representa un artículo publicado, su ubicación está dada por el vector representativo de cada artículo (embeddings). Entonces los artículos que sean cercanos serán similares (porque sus representaciones vectoriales lo son).
 Los colores corresponden a los tópicos del modelo.
 """)
-st.caption("Seleccioná un área para hacer zoom y hacé doble clic sobre el gráfico para reestablecer la vista. Usá la leyenda de la derecha para encender, apagar o aislar Tópicos.")
-st.caption("Posa el mouse sobre un articulo para ver su Tópico, nombre y tagline correspondiente.")
+st.caption("Seleccioná un área para hacer zoom y hacé doble clic sobre el gráfico para restablecer la vista. Posá el mouse sobre un artículo para ver su Tópico, nombre y tagline correspondiente.")
 
-cargar_html(GRAFICOS_DIR / "03_espacio_documentos.html", height=750)
+
+
+# Tip visual para el usuario
+st.caption("Podés usar la opción **`Select all`** adentro del menú para ver todos los tópicos a la vez, o tocar la **`x`** a la derecha de la caja para limpiar todos.")
+
+# Multiselect nativo
+topicos_seleccionados_mapa = st.multiselect(
+    "Seleccioná los tópicos a visualizar en el mapa:",
+    options=TODOS_LOS_TOPICOS,
+    default=TODOS_LOS_TOPICOS[:], 
+    format_func=lambda t_id: f"{t_id}: {mapeo_nombres.get(t_id, '')}",
+    placeholder="Buscá o elegí los tópicos..."
+)
+
+# --- RENDERIZADO DEL MAPA ---
+if not topicos_seleccionados_mapa:
+    st.warning("Elegí al menos un tópico para visualizar el mapa.")
+else:
+    # Filtramos el DataFrame con las coordenadas
+    df_plot = df_mapa[df_mapa["topic"].isin(topicos_seleccionados_mapa)].copy()
+    
+    # Recreamos la etiqueta para asegurarnos de que coincida 100% con los nombres limpios
+    df_plot['topic_label'] = df_plot['topic'].apply(lambda t: f"{t}: {mapeo_nombres.get(t, '')}")
+    
+    # Aseguramos que el orden de la leyenda sea categórico y prolijo
+    categorias_validas = [f"{t}: {mapeo_nombres.get(t, '')}" for t in sorted(topicos_seleccionados_mapa)]
+    df_plot['topic_label'] = pd.Categorical(df_plot['topic_label'], categories=categorias_validas, ordered=True)
+    df_plot = df_plot.sort_values('topic_label')
+
+    todas_las_categorias_posibles = [f"{t}: {mapeo_nombres.get(t, '')}" for t in sorted(TODOS_LOS_TOPICOS)]
+    paleta = px.colors.qualitative.Alphabet
+    # Asignamos a cada tópico posible un color fijo de la paleta
+    mapa_colores_fijo = {cat: paleta[i % len(paleta)] for i, cat in enumerate(todas_las_categorias_posibles)}
+
+
+    # Creamos la figura con WebGL para máximo rendimiento
+    mapa_colores_scatter = {f"{t}: {mapeo_nombres.get(t, '')}": MAPA_COLORES_GLOBAL[t] for t in TODOS_LOS_TOPICOS}
+
+    fig_mapa = px.scatter(
+        df_plot, 
+        x='x', 
+        y='y', 
+        color='topic_label', 
+        custom_data=['topic_label', 'title', 'tagline'],
+        color_discrete_map=mapa_colores_scatter,
+        render_mode='webgl'
+    )
+
+    # Formato del hover y tamaño de puntos
+    fig_mapa.update_traces(
+        hovertemplate=(
+            "<b>Tópico:</b> %{customdata[0]}<br>"
+            "<b>Título:</b> %{customdata[1]}<br>"
+            "<i>%{customdata[2]}</i>"
+            "<extra></extra>"
+        ), 
+        marker=dict(size=7, opacity=0.85, line=dict(width=0.5, color='white'))
+    )
+
+    # Diseño del gráfico
+    fig_mapa.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)', 
+        paper_bgcolor='#fff', 
+        height=700,
+        font=dict(family="Arial, sans-serif", size=14, color="#333"),
+        hovermode="closest",
+        xaxis=dict(showticklabels=False, zeroline=False, showgrid=False, title=""),
+        yaxis=dict(showticklabels=False, zeroline=False, showgrid=False, title=""),
+        legend=dict(
+            title="<b>Tópicos</b>", 
+            orientation="v", 
+            y=1, 
+            x=1.02,
+            itemsizing='constant'
+        ),
+        margin=dict(r=200, t=20, b=20)
+    )
+
+    st.plotly_chart(fig_mapa, use_container_width=True, theme=None)
+
 
 with st.expander("Detalles: Como se construyo el mapa"):
     st.markdown("""

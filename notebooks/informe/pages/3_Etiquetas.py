@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import random
 from plotly.subplots import make_subplots
 from pathlib import Path
 import math
@@ -101,14 +102,30 @@ with col_ranking:
 with col_articulos:
     st.markdown("##### Artículos por Etiqueta")
     
-    # Buscador con autocompletado sobre todo el universo de etiquetas
-    tag_seleccionado = st.selectbox(
-        "Buscar etiqueta:",
-        options=todas_las_etiquetas,
-        index=todas_las_etiquetas.index(df_tags_display["Etiqueta"].iloc[0]) if df_tags_display["Etiqueta"].iloc[0] in todas_las_etiquetas else 0,
-        placeholder="Escribí para buscar sugerencias...",
-        label_visibility="collapsed"
-    )
+    # Inicialización del estado
+    if "tag_seleccionado_azar" not in st.session_state:
+        st.session_state["tag_seleccionado_azar"] = (
+            df_tags_display["Etiqueta"].iloc[0] 
+            if not df_tags_display.empty and df_tags_display["Etiqueta"].iloc[0] in todas_las_etiquetas 
+            else (todas_las_etiquetas[0] if todas_las_etiquetas else None)
+        )
+    
+    col_t_sel, col_t_btn = st.columns([3.5, 1.2], vertical_alignment="bottom")
+    
+    with col_t_btn:
+        if st.button("🎲 Al azar", key="btn_azar_tag_cat", use_container_width=True):
+            if todas_las_etiquetas:
+                st.session_state["tag_seleccionado_azar"] = random.choice(todas_las_etiquetas)
+                st.rerun()
+
+    with col_t_sel:
+        tag_seleccionado = st.selectbox(
+            "Buscar etiqueta:",
+            options=todas_las_etiquetas,
+            key="tag_seleccionado_azar",
+            placeholder="Escribí para buscar sugerencias...",
+            label_visibility="collapsed"
+        )
 
     if tag_seleccionado:
         notas_tag = (
@@ -429,26 +446,37 @@ with st.expander("Metodología y Métricas"):
     """)
 
 st.write("")
-st.write("Buscar Similares a una etíqueta especifica")
-# Universo de etiquetas que tienen al menos una relación de solapamiento
+st.write("Buscar Similares a una etiqueta específica:")
+
 tags_con_similares = sorted(
     set(df_solap_display["Etiqueta A"].dropna()).union(set(df_solap_display["Etiqueta B"].dropna()))
 )
 
-tag_especifica = st.selectbox(
-    "Seleccioná una etiqueta:",
-    options=tags_con_similares,
-    index=495 if tags_con_similares else None,
-    placeholder="Escribí para buscar...",
-    label_visibility="collapsed"
-)
+# Inicialización del estado
+if "tag_solap_azar" not in st.session_state:
+    st.session_state["tag_solap_azar"] = tags_con_similares[0] if tags_con_similares else None
+
+col_s_sel, col_s_btn = st.columns([4, 1], vertical_alignment="bottom")
+
+with col_s_btn:
+    if st.button("🎲 Al azar", key="btn_azar_solap", use_container_width=True):
+        if tags_con_similares:
+            st.session_state["tag_solap_azar"] = random.choice(tags_con_similares)
+            st.rerun()
+
+with col_s_sel:
+    tag_especifica = st.selectbox(
+        "Seleccioná una etiqueta:",
+        options=tags_con_similares,
+        key="tag_solap_azar",
+        placeholder="Escribí para buscar...",
+        label_visibility="collapsed"
+    )
 
 if tag_especifica:
-    # Filtramos donde aparezca en A o en B
     mask = (df_solap_display["Etiqueta A"] == tag_especifica) | (df_solap_display["Etiqueta B"] == tag_especifica)
     df_filtrado = df_solap_display[mask].copy()
 
-    # Mapeamos para quedarnos con la contraparte y su similitud
     relacionadas = []
     for _, row in df_filtrado.iterrows():
         etiqueta_vecina = row["Etiqueta B"] if row["Etiqueta A"] == tag_especifica else row["Etiqueta A"]
@@ -463,6 +491,7 @@ if tag_especifica:
         df_vecinas,
         use_container_width=True,
         hide_index=True,
+        height = 570,
         column_config={
             "Etiqueta Similar": st.column_config.TextColumn("Etiquetas Similares", width="large"),
             "Similitud Temática": st.column_config.ProgressColumn(
