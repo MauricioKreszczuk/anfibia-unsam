@@ -97,13 +97,60 @@ NUEVAS_STOPWORDS_4 = {
     "acompañar", "señalar"
 }
 
+NUEVAS_STOPWORDS_5 = {
+    # Términos transversales del corpus con más del 15% de frecuencia documental
+    #"social", "mundo", "pais", "país", "publico", "público", 
+    "politico", "político", "politica", "política"
+    #, "nacional"
+    #, 
+    # "cambio", "gobierno", "sociedad", "ciudad", "derecho", 
+    # "fuerza", "realidad", "sistema", "semana", "movimiento", 
+    # "leer", "voz", "mujer", "hombre", "familia", "hijo", 
+    # "joven", "cuerpo", "trabajo", "clase", "economico", "económico"
+}
 
+'''
+--- POSIBLES STOPWORDS DE DOMINIO (Aparecen en más del 15.0% de Anfibia) ---
+      Lema  Apariciones_Docs  Porcentaje_Corpus
+    social              2536          71.316085
+     mundo              2477          69.656918
+      país              2414          67.885264
+   público              2383          67.013498
+  político              2268          63.779528
+   trabajo              2182          61.361080
+  política              2133          59.983127
+      casa              2009          56.496063
+  nacional              1978          55.624297
+    cambio              1940          54.555681
+     mujer              1884          52.980877
+  gobierno              1859          52.277840
+  sociedad              1701          47.834646
+    ciudad              1693          47.609674
+   derecho              1654          46.512936
+    fuerza              1652          46.456693
+    hombre              1632          45.894263
+   familia              1628          45.781777
+    cuerpo              1613          45.359955
+       red              1596          44.881890
+ económico              1547          43.503937
+   sistema              1543          43.391451
+  realidad              1531          43.053993
+     joven              1530          43.025872
+      hijo              1529          42.997750
+    semana              1529          42.997750
+movimiento              1527          42.941507
+      leer              1484          41.732283
+     clase              1473          41.422947
+       voz              1403          39.454443
+'''
 
 # Actualizá
 DOMAIN_STOPWORDS = DOMAIN_STOPWORDS.union(NUEVAS_STOPWORDS)
 DOMAIN_STOPWORDS = DOMAIN_STOPWORDS.union(NUEVAS_STOPWORDS_2)
 DOMAIN_STOPWORDS = DOMAIN_STOPWORDS.union(NUEVAS_STOPWORDS_3)
 DOMAIN_STOPWORDS = DOMAIN_STOPWORDS.union(NUEVAS_STOPWORDS_4)
+DOMAIN_STOPWORDS = DOMAIN_STOPWORDS.union(NUEVAS_STOPWORDS_5)
+
 
 STOPWORDS = sorted(SPANISH_STOPWORDS | DOMAIN_STOPWORDS)
 
