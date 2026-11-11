@@ -9,6 +9,9 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 
+# Notebooks de análisis y experimentación (se preserva la estructura)
+notebooks/inactivos/*
+
 # Salidas pesadas
 outputs/*
 !outputs/.gitkeep
