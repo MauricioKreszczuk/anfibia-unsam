@@ -61,31 +61,31 @@ python -m spacy download es_core_news_md
 
 ## Descripción de Archivos:
 
-1. **Extracción y sanitización del dump (`src/extract_posteos_anfibia.py`):**
+**Extracción y sanitización del dump (`src/extract_posteos_anfibia.py`):**
 Procesa por streaming el volcado de la base de datos filtrando únicamente notas publicadas (`post_type == "post"` y `post_status == "publish"`). Remueve etiquetas HTML, *shortcodes* y bloques de Gutenberg, excluye tablas de usuarios/suscriptores y redacta correos electrónicos (`[EMAIL_REDACTED]`). Genera `data/processed/posteos_anfibia.csv`.
 
-1. **Generación de stopwords (`src/stopwords.py`):**
+**Generación de stopwords (`src/stopwords.py`):**
 Consolida stopwords generales del español junto con términos de alta frecuencia (Necesario para la creación de tópicos). Genera `data/processed/stopwords_anfibia.txt`.
 
-1. **Exploración inicial (`notebooks/01_exploracion_y_diagnostico.ipynb`):**
+**Exploración inicial (`notebooks/01_exploracion_y_diagnostico.ipynb`):**
 Verifica consistencia temporal, distribución de longitudes y completitud de campos.
 
-1. **Curaduría y lematización (`notebooks/02_limpieza_y_lematizacion.ipynb`):**
+**Curaduría y lematización (`notebooks/02_limpieza_y_lematizacion.ipynb`):**
 Filtra notas sin cuerpo textual, descarta versiones republicadas obsoletas (`-N/`), filtra idiomas extranjeros, integra copete y bajada al documento y ejecuta lematización por lotes con `es_core_news_md`. Genera `corpus_anfibia_lematizado.csv`.
 
-1. **Representación Bag-of-Words y nubes de palabras (`notebooks/03_bow_y_wordclouds.ipynb`):**
+**Representación Bag-of-Words y nubes de palabras (`notebooks/03_bow_y_wordclouds.ipynb`):**
 Construye la matriz documento-término (`CountVectorizer`) y genera visualizaciones léxicas globales y temporales por categoría.
 
-1. **Modelado de Tópicos Híbrido (`notebooks/04_bertopic_entrenamiento_y_reduccion.ipynb`):**
+**Modelado de Tópicos Híbrido (`notebooks/04_bertopic_entrenamiento_y_reduccion.ipynb`):**
 Entrena BERTopic combinando embeddings sobre texto natural (`paraphrase-multilingual-MiniLM-L12-v2` + UMAP + HDBSCAN) con representación c-TF-IDF / `KeyBERTInspired` sobre los artículos lematizados. Incluye fusión guiada y reasignación de *outliers* por umbral de similitud coseno ($\ge 0.65$).
 
-1. **Calibración de Misceláneos y Evolución Temporal (`notebooks/05_bertopic_outliers_y_evolucion.ipynb`):**
+**Calibración de Misceláneos y Evolución Temporal (`notebooks/05_bertopic_outliers_y_evolucion.ipynb`):**
 Consolida los documentos residuales en el Tópico `100`, reordena clústeres por volumen y calcula series temporales (`topics_over_time`) identificando picos históricos y notas representativas.
 
-1. **Analisis de etiquetas (`notebooks/06_auditoria_etiquetas.ipynb`):**
+**Analisis de etiquetas (`notebooks/06_auditoria_etiquetas.ipynb`):**
 Evalúa cobertura de `post_tag`, dispersión temática (*Ratio de Fragmentación*), coocurrencia (Índice de Jaccard) y detección híbrida de cuasi-duplicados léxicos y semánticos.
 
-1. **Motor de Recomendación (`notebooks/07_recomendador_articulos.ipynb`):**
+**Motor de Recomendación (`notebooks/07_recomendador_articulos.ipynb`):**
 Calcula distribuciones suaves de probabilidad temática (`approximate_distribution`) y similitud coseno para rankear artículos similares.
 
 ---
