@@ -3,14 +3,14 @@ venv/
 env/
 .env/
 
-# Datos crudos y procesados (se preserva la estructura)
+# Datos crudos y procesados 
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
 
-# Notebooks de análisis y experimentación (se preserva la estructura)
-notebooks/inactivos/*
+# Notebooks de análisis y experimentación 
+notebooks/inactivos
 
 # Salidas pesadas
 outputs/*

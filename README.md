@@ -6,7 +6,7 @@ Se realiza una exploración sobre el archivo de publicaciones de la revista (201
 
 ---
 
-## 📂 Estructura del Repositorio
+## Estructura del Repositorio
 
 La disposición del proyecto sigue las recomendaciones de reproducibilidad y resguardo del CIAI-UNSAM:
 
@@ -14,13 +14,12 @@ La disposición del proyecto sigue las recomendaciones de reproducibilidad y res
 ├── data/
 │   ├── raw/                 # Datos originales (.sql, .csv) [ignorado por Git]
 │   ├── processed/           # Datasets curados (.parquet, .csv) [ignorado por Git]
-├── docs/                    # diseño, decisiones, informes
+├── docs/                    # Diseño, decisiones, informes
 ├── notebooks/               # Exploración y análisis
 ├── outputs/                 # Figuras, tableros, resultados
 ├── src/                     # Scripts auxiliares de extracción y procesamiento
-├── app.py                   # Tablero interactivo (Streamlit)
-├── requirements.txt         # Entorno reproducible
+├── requirements.txt         # Entorno 
 ├── .gitignore               # Reglas de exclusión
-└── README.md                # Documentación técnica general
+└── README.md                # Documentación General
 
 
