@@ -8,8 +8,6 @@ Se realiza una exploración sobre el archivo de publicaciones de la revista (201
 
 ## Estructura del Repositorio
 
-La organización sigue los criterios de reproducibilidad, trazabilidad y resguardo de datos establecidos por el CIAI-UNSAM:
-
 ```text
 ├── data/
 │   ├── raw/                 # Volcado SQL original de WordPress [ignorado por Git]
@@ -99,6 +97,4 @@ Calcula distribuciones suaves de probabilidad temática (`approximate_distributi
 En cumplimiento con los *Lineamientos para la Gobernanza de Datos e IA de la UNSAM*:
 
 * El volcado SQL crudo (`data/raw/`) y los datasets derivados (`data/processed/`) se encuentran excluidos del control de versiones mediante `.gitignore`.
-* El script de extracción opera bajo el principio de minimización de datos, descartando metadatos técnicos, credenciales o información de usuarios antes de generar cualquier artefacto analítico.
-
-```
+* El script de extracción opera bajo el principio de minimización de datos, descartando metadatos técnicos, credenciales o información de usuarios.
