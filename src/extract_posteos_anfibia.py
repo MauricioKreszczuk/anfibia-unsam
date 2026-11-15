@@ -1,9 +1,12 @@
-"""Extract published Revista Anfibia posts from a WordPress SQL dump.
+"""
 
-The script streams the dump and only keeps editorial tables needed for the
-post-level corpus. It avoids user/newsletter/security
-tables because those are not needed for this analysis and can contain personal
-or operational data.
+
+Extrae los posteos publicados de Revista Anfibia desde el dump SQL de WordPress.
+
+Procesa el volcado por streaming y conserva solo las tablas editoriales necesarias,
+evitando tablas de usuarios, newsletters o seguridad con datos personales u operativos.
+
+
 """
 
 from __future__ import annotations

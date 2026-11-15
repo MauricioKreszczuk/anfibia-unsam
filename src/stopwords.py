@@ -1,3 +1,14 @@
+"""
+
+
+Arma la lista de stopwords (español general + palabras muy frecuentes de Anfibia)
+y la guarda en data/processed/stopwords_anfibia.txt.
+
+
+"""
+
+
+
 from pathlib import Path
 
 SPANISH_STOPWORDS = {
