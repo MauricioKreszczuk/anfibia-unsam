@@ -59,18 +59,16 @@ python -m spacy download es_core_news_md
 
 ---
 
-## Ejecución
-
-Para reproducir la ejecución completa ejecutar los archivos en este orden:
+## Descripción de Archivos:
 
 1. **Extracción y sanitización del dump (`src/extract_posteos_anfibia.py`):**
 Procesa por streaming el volcado de la base de datos filtrando únicamente notas publicadas (`post_type == "post"` y `post_status == "publish"`). Remueve etiquetas HTML, *shortcodes* y bloques de Gutenberg, excluye tablas de usuarios/suscriptores y redacta correos electrónicos (`[EMAIL_REDACTED]`). Genera `data/processed/posteos_anfibia.csv`.
 
 1. **Generación de stopwords (`src/stopwords.py`):**
-Consolida stopwords generales del español junto con términos editoriales de alta frecuencia (Necesario para la creación de tópicos). Genera `data/processed/stopwords_anfibia.txt`.
+Consolida stopwords generales del español junto con términos de alta frecuencia (Necesario para la creación de tópicos). Genera `data/processed/stopwords_anfibia.txt`.
 
-1. **Exploración y auditoría inicial (`notebooks/01_exploracion_y_diagnostico.ipynb`):**
-Verifica consistencia temporal, distribución de longitudes, taxonomías y completitud de campos.
+1. **Exploración inicial (`notebooks/01_exploracion_y_diagnostico.ipynb`):**
+Verifica consistencia temporal, distribución de longitudes y completitud de campos.
 
 1. **Curaduría y lematización (`notebooks/02_limpieza_y_lematizacion.ipynb`):**
 Filtra notas sin cuerpo textual, descarta versiones republicadas obsoletas (`-N/`), filtra idiomas extranjeros, integra copete y bajada al documento y ejecuta lematización por lotes con `es_core_news_md`. Genera `corpus_anfibia_lematizado.csv`.
@@ -79,16 +77,32 @@ Filtra notas sin cuerpo textual, descarta versiones republicadas obsoletas (`-N/
 Construye la matriz documento-término (`CountVectorizer`) y genera visualizaciones léxicas globales y temporales por categoría.
 
 1. **Modelado de Tópicos Híbrido (`notebooks/04_bertopic_entrenamiento_y_reduccion.ipynb`):**
-Entrena BERTopic combinando embeddings densos sobre texto natural (`paraphrase-multilingual-MiniLM-L12-v2` + UMAP + HDBSCAN) con representación c-TF-IDF / `KeyBERTInspired` sobre los artículos lematizados. Incluye fusión guiada y reasignación de *outliers* por umbral de similitud coseno ($\ge 0.65$).
+Entrena BERTopic combinando embeddings sobre texto natural (`paraphrase-multilingual-MiniLM-L12-v2` + UMAP + HDBSCAN) con representación c-TF-IDF / `KeyBERTInspired` sobre los artículos lematizados. Incluye fusión guiada y reasignación de *outliers* por umbral de similitud coseno ($\ge 0.65$).
 
 1. **Calibración de Misceláneos y Evolución Temporal (`notebooks/05_bertopic_outliers_y_evolucion.ipynb`):**
 Consolida los documentos residuales en el Tópico `100`, reordena clústeres por volumen y calcula series temporales (`topics_over_time`) identificando picos históricos y notas representativas.
 
-1. **Auditoría de Taxonomías Editoriales (`notebooks/06_auditoria_etiquetas.ipynb`):**
+1. **Analisis de etiquetas (`notebooks/06_auditoria_etiquetas.ipynb`):**
 Evalúa cobertura de `post_tag`, dispersión temática (*Ratio de Fragmentación*), coocurrencia (Índice de Jaccard) y detección híbrida de cuasi-duplicados léxicos y semánticos.
 
 1. **Motor de Recomendación (`notebooks/07_recomendador_articulos.ipynb`):**
 Calcula distribuciones suaves de probabilidad temática (`approximate_distribution`) y similitud coseno para rankear artículos similares.
+
+---
+## Orden estricto de ejecución
+
+Para reconstruir el proyecto desde cero, se deben ejecutar los archivos en esta secuencia exacta:
+
+1. `python src/extract_posteos_anfibia.py` *(requiere tener el dump `.sql` en `data/raw/`)*
+2. `python src/stopwords.py`
+3. `notebooks/01_exploracion_y_diagnostico.ipynb` *(opcional, solo diagnóstico)*
+4. `notebooks/02_limpieza_y_lematizacion.ipynb` *(genera el corpus base para todo lo que sigue)*
+5. `notebooks/03_bow_y_wordclouds.ipynb` *(puede correrse en paralelo al 04)*
+6. `notebooks/04_bertopic_entrenamiento_y_reduccion.ipynb`
+7. `notebooks/05_bertopic_outliers_y_evolucion.ipynb` *(requiere el modelo y embeddings del 04)*
+8. `notebooks/06_auditoria_etiquetas.ipynb` *(requiere el modelo final y parquet del 05)*
+9. `notebooks/07_recomendador_articulos.ipynb` *(requiere el modelo final, parquet y embeddings del 04/05)*
+
 
 ---
 
