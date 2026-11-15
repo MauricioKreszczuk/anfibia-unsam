@@ -1,6 +1,6 @@
 # Diccionario de columnas 
 
-Dataset generado por `scripts/extract_posteos_anfibia.py` a partir de `revistaanfibia_prod_database_2026-06-17.sql` y enriquecido en el pipeline de modelado.
+Dataset generado por `src/extract_posteos_anfibia.py` a partir de `revistaanfibia_prod_database_2026-06-17.sql` y enriquecido en el pipeline de modelado.
 Solo contiene posts con `post_type = "post"` y `post_status = "publish"` (3.622 filas).
 
 ---
@@ -141,8 +141,9 @@ Solo contiene posts con `post_type = "post"` y `post_status = "publish"` (3.622 
 
 | Columna / Variable | Qué es | Uso |
 |---|---|---|
-| `topic` | ID numérico del tópico asignado por BERTopic (-1 es outlier) | Agrupamiento temático |
-| `topic_name` | Las 3 palabras clave más pesadas del tópico (c-TF-IDF) | Descriptor algorítmico del clúster |
-| `tag_canonico_propuesto` | Tag normalizado derivado de `topic_name` (vacío en outliers) | Estandarización de tags |
-| `embeddings` | Matriz de embeddings densos por documento | Espacio vectorial de representación |
-| `matriz_similitud` | Matriz cuadrada de Similitud Coseno sobre los embeddings | Motor del recomendador |
+| `topic` | ID numérico del tópico asignado (0-21, 100 es outlier) | Agrupamiento temático |
+| `topic_name` | Tópico + Las 3 palabras clave más pesadas (c-TF-IDF) | Descriptor algorítmico del clúster |
+| `embeddings_naturales.npy` | Matriz de embeddings densos por documento | Base del espacio semántico |
+| `doc_topic_dist.npy` | Matriz de distribución continua de probabilidad por tópico | Base del espacio temático |
+| `umap_sem_x` / `y` | Coordenadas 2D de embeddings proyectados | Visualización de constelación semántica |
+| `umap_tem_x` / `y` | Coordenadas 2D de probabilidades proyectadas | Visualización de constelación temática |
