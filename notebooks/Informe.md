@@ -261,3 +261,50 @@ Por ejemplo, aunque los tópicos **04** y **05** aparecen próximos, al revisar 
   * *"DÓLAR BLUE: LA CORRIDA QUE NO FUE"* — *Tagline: Mercados*
   * *"Syriza: golpear y negociar"* — *Tagline: Crisis europea*
 
+
+#### 2.2.4. Tratamiento de *outliers* (`Tópico -1`)
+
+Una proporción importante de los artículos quedo inicialmente sin asignación temática bajo la etiqueta `-1` (*outliers*).
+Se evaluaron dos estrategias para integrar parte de estos documentos sin degradar la calidad de los 22 tópicos consolidados:
+
+1. **Reasignación forzada :** Asigna el 100 % de los `-1` al tópico con el centroide más cercano. Si bien elimina por completo los *outliers*, diluye las palabras clave (`c-TF-IDF`) y reduciendo la coherencia de los Tópicos.
+2. **Reasignación acotada por umbral de similitud coseno ($\ge 0,65$):** Se calculó el centroide semántico de cada uno de los 22 tópicos promediando los *embeddings* naturales (texto sin lematizar) de sus artículos. Luego se midió la similitud del coseno entre cada documento `-1` y los 22 centroides, reasignando únicamente aquellas notas cuya similitud máxima alcanzara o superara `0,65`, y por ultimo se recalibraron los pesos c-TF-IDF.
+
+Se decidio optar por la segunda opción. Lo cual redujo los Outliers:
+
+![Proporción de artículos asignados frente a outliers antes y después del umbral](../docs/figuras/proporcion_outliers.png)
+
+
+Con ello, los Tópicos finales son:
+
+| Tópico | Palabras clave principales | Artículos (base) | Artículos (umbral $\ge 0,65$) | Variación |
+| :--- | :--- | :---: | :---: | :---: |
+| **00** | *candidato, electoral, campaña, debate, votar, discurso* | 456 | 620 | +164 |
+| **01** | *literario, autor, escritor, poeta, protagonista, literatura* | 304 | 392 | +88 |
+| **02** | *feminismo, feminista, aborto, abortar, patriarcado, debate* | 288 | 334 | +46 |
+| **03** | *muerto, dictadura, muerte, morir, desaparición, cuba* | 164 | 247 | +83 |
+| **04** | *ambiental, ambiente, crisis, proyecto, sociedad, futuro* | 144 | 198 | +54 |
+| **05** | *déficit, economía, pobreza, económico, fiscal, deuda* | 139 | 195 | +56 |
+| **06** | *futbolista, fifa, fútbol, brasil, barcelona, deporte* | 129 | 141 | +12 |
+| **07** | *pedagógico, enseñanza, escolar, educativo, enseñar, educación* | 115 | 126 | +11 |
+| **08** | *epidemia, pandemia, vacunar, virus, vacuna, vacunación* | 98 | 126 | +28 |
+| **09** | *periodístico, mediático, periodista, noticia, publicar, democracia* | 76 | 119 | +43 |
+| **10** | *tecnológico, innovación, tecnología, inteligencia, futuro, inteligente* | 60 | 82 | +22 |
+| **11** | *justicia, judicial, juzgado, tribunal, juez, condena* | 48 | 81 | +33 |
+| **12** | *soviético, rusia, siria, ucrania, moscú, guerra* | 69 | 73 | +4 |
+| **13** | *música, musical, músico, canción, cantante, cantar* | 54 | 71 | +17 |
+| **14** | *papal, catolicismo, arzobispo, católica, católico, vaticano* | 58 | 64 | +6 |
+| **15** | *urbano, ciudad, vecino, pueblo, barrio, público* | 23 | 47 | +24 |
+| **16** | *astrónomo, universo, astrología, ciencia, científico, teoría* | 19 | 25 | +6 |
+| **17** | *selva, ecológico, naturaleza, paisaje, extinción, existencia* | 12 | 22 | +10 |
+| **18** | *presidencial, trump, republicano, bush, presidencia, presidente* | 14 | 20 | +6 |
+| **19** | *submarino, marino, océano, naval, marítimo, embarcación* | 15 | 15 | +0 |
+| **20** | *asesino, asesinar, héroe, superhéroe, asesinato, matar* | 10 | 12 | +2 |
+| **21** | *papá, padre, abuelo, hermano, hombre, mamá* | 12 | 12 | +0 |
+
+
+Finalmente, se inspeccionaron los artículos que permanecieron por debajo del umbral `0,65`. Se decidió preservarlos e intentar agregarlos al análisis de Tópicos. Para ello se los integro como un Tópico (**Tópico 100**).
+
+| Tópico | Palabras clave principales | Artículos|
+| :--- | :--- | :---: |
+| **100** | *padre, hombre, pueblo, causa, humano, género* | 534 |
