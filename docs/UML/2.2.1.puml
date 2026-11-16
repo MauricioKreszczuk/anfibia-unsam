@@ -1,0 +1,28 @@
+@startuml 2.2.1
+left to right direction
+skinparam dpi 300
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontSize 11
+skinparam nodesep 18
+skinparam ranksep 25
+
+title Creación de Tópicos (BERTOPIC)
+
+rectangle "<b>Embeddings</b>\n---\n3.557 artículos × 384D\n(MiniLM-L12-v2 sobre texto\nNO-lematizado)" as emb
+
+rectangle "<b>UMAP</b>\n---\n• Une cada artículo con\n  sus 15 más parecidos\n• Comprime de 384D a 5D" as umap
+
+rectangle "<b>HDBSCAN</b>\n---\n• Detecta zonas densas\n  (mín. 3 notas cercanas)\n• Exige al menos 10 notas\n  para crear un tópico" as hdb
+
+package "Salida" {
+  rectangle "<b>Tópicos base (0..N)</b>\nNúcleos temáticos alredor de los cuales \n se hallan densamente artículos" as ok
+  rectangle "<b>Outliers (Tópico -1)</b>\nNotas que no eran lo suficientemente\nsimilares a los Tópicos" as out
+}
+
+emb --> umap
+umap --> hdb
+hdb --> ok
+hdb --> out
+
+@enduml

@@ -1,0 +1,39 @@
+@startuml 2.2.2
+skinparam dpi 300
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 11
+skinparam nodesep 35
+skinparam ranksep 16
+skinparam roundcorner 12
+skinparam linetype polyline
+
+skinparam arrow {
+  Color #475569
+  FontColor #1e293b
+  FontSize 10
+  Thickness 1.5
+}
+
+title <b>Funcionamiento de c-TF-IDF</b>
+
+together {
+  collections "<b>1. Palabras por Artículo</b>\n---\n|= Nota |= Tópico |= Palabras del artículo |\n| N1 | <color:#1d4ed8><b>T0</b></color> | votar, ley, <color:#dc2626>crisis</color> |\n| N2 | <color:#1d4ed8><b>T0</b></color> | votar, deuda, <color:#dc2626>crisis</color> |\n| N3 | <color:#15803d><b>T1</b></color> | mujer, aborto, <color:#dc2626>crisis</color> |\n| N4 | <color:#15803d><b>T1</b></color> | aborto, marcha, <color:#dc2626>crisis</color> |" as p1 #F8FAFC;line:64748B;line.bold
+
+  file "<b>2. Palabras por Tópico</b>\n---\n|= Tópico |= Texto concatenado |\n| <color:#1d4ed8><b>T0</b></color> | votar ley <color:#dc2626>crisis</color> votar deuda <color:#dc2626>crisis</color> |\n| <color:#15803d><b>T1</b></color> | mujer aborto <color:#dc2626>crisis</color> aborto marcha <color:#dc2626>crisis</color> |" as p2 #EFF6FF;line:2563EB;line.bold
+}
+
+rectangle "<b>Fórmula (BERTopic)</b>\n\n---\n<b>W<sub>x,c</sub> = ‖tf<sub>x,c</sub>‖  ×  log( 1 + A / f<sub>x</sub> )</b>\n        <i>   (c-TF)</i>      <i>(IDF de clase/tópico)</i>\n\n---\n• <b>x</b>: palabra (término)\n\n• <b>c</b>: tópico (clase)\n\n• <b>tf<sub>x,c</sub></b>: frecuencia de <i>x</i> en el tópico <i>c</i>\n\n• <b>f<sub>x</sub></b>: frecuencia total de <i>x</i> en todo el corpus\n\n• <b>A</b>: promedio de palabras por tópico" as f_box #FAF5FF;line:7E22CE;line.dashed
+
+rectangle "<b>3. Matriz Tópico × Palabra</b>\n---\n|= Tópico |= votar |= deuda |= aborto |= mujer |= marcha |= ley |= <color:#dc2626>crisis</color> |\n| <color:#1d4ed8><b>T0</b></color> | <b>2</b> | <b>1</b> | 0 | 0 | 0 | <b>1</b> | <color:#dc2626><b>2</b></color> |\n| <color:#15803d><b>T1</b></color> | 0 | 0 | <b>2</b> | <b>1</b> | <b>1</b> | 0 | <color:#dc2626><b>2</b></color> |" as p3 #FEFCE8;line:CA8A04;line.bold
+
+card "<b>4. Matriz de pesos de cada palabra (c-TF-IDF)</b>\n---\n|= Tópico |= votar |= deuda |= aborto |= mujer |= marcha |= ley |= <color:#dc2626>crisis</color> |\n| <color:#1d4ed8><b>T0</b></color> | <color:#7e22ce><b>0.46</b></color> | <color:#7e22ce><b>0.32</b></color> | 0.00 | 0.00 | 0.00 | <color:#7e22ce><b>0.32</b></color> | <color:#dc2626>0.31</color> |\n| <color:#15803d><b>T1</b></color> | 0.00 | 0.00 | <color:#7e22ce><b>0.46</b></color> | <color:#7e22ce><b>0.32</b></color> | <color:#7e22ce><b>0.32</b></color> | 0.00 | <color:#dc2626>0.31</color> |\n---\n<b>Nombres resultantes:</b>\n• <color:#1d4ed8><b>T0</b></color> -> <b>votar_deuda_ley</b>\n• <color:#15803d><b>T1</b></color> -> <b>aborto_mujer_marcha</b>" as p4 #F0FDF4;line:16A34A;line.bold
+
+p1 -right-> p2 : <b>Une por Tópico</b>
+p2 -d-> p3 : <b>  Cuenta cada palabra por separado</b>
+p3 -d-> p4 : <b>  Pondera usando c-TF-IDF</b>
+
+p1 -[hidden]d-> f_box
+
+@enduml

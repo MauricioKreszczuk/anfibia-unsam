@@ -166,3 +166,66 @@ Se muestra la comparación de la nube de palabras (tamaño decidido por frecuenc
 En la comparación se nota cómo en la versión lematizada se unificaron las diferentes versiones en un lema y la falta de las palabras conectoras que se quitaron con las *stopwords*.
 
 
+### 2.2. Modelado de tópicos
+
+El objetivo de crear tópicos es descubrir los núcleos temáticos reales alrededor de los cuales se concentran los artículos, sin depender de las categorías fijas ni de las etiquetas puestas a mano. Contar con estos núcleos permite ver cómo evolucionó Anfibia a lo largo de los años y como una base sobre la cual crear un recomendador por Tópicos similares.
+
+#### 2.2.1. Tópicos con BerTopic
+
+Antes de llegar a este modelo, se probaron otros enfoques basados únicamente en conteo de palabras (como LDA) y modelos de *embeddings* en español. El problema de usar solo el conteo de palabras es que dos artículos sobre el mismo tema pueden usar vocabularios muy distintos —algo muy común en crónicas y ensayos literarios—, por lo que se descartó LDA. Por otro lado, si se usan únicamente *embeddings* (agrupando notas), se consiguen tópicos coherentes pero el modelo no devuelve por sí solo una manera de explicar de qué trata cada uno.
+
+Por eso se recurrió a **BERTopic**, que ademas de la creación de topicos nos proporciona la extracción de palabras clave y otras funcionalidades. En esta primera etapa, para detectar los Tópicos se calcularon *embeddings* densos sobre el texto original sin lematizar (`document_text_original`) usando el modelo `paraphrase-multilingual-MiniLM-L12-v2`, de manera que tiene en cuenta la estructura de las oraciones y el contexto de las palabras en ellas, algo que se pierde con la lematización. Como cada artículo queda representado en un espacio de 384 dimensiones (sus embeddings), primero se comprimieron esos vectores con `UMAP` conservando tanto la cercanía entre notas parecidas y la estructura general.
+
+Sobre ese espacio reducido se aplicó el algoritmo de agrupamiento por densidad `HDBSCAN` (`min_cluster_size=10`, `min_samples=3`). A diferencia de otros metodos que exigen fijar de antemano cuántos tópicos existen y obligan a meter cada artículo en algún núcleo aunque no encaje—, `HDBSCAN` busca zonas donde se acumula una alta densidad de artículos similares entre sí, permitiendo que cada tópico decida sus artículos. Además, deja un tópico aparte (`-1`) todas las notas demasiado específicas que no caen claramente dentro de ningun otro, esto ademas ayuda a la creacion de palabras clave.
+
+Con esos parametros se busco que el modelo busque Tópicos muy definidos aunque no lleguen a tener un gran numero de notas. 
+
+*Cada artículo posee una distribucion de los tópicos, osea, un porcentaje de que tanto de cada tópico posee. Decimos que un artículo pertenece a cierto Tópico cuando ese es el que mayor porcentaje tiene.*
+
+![alt text](../docs/UML/2.2.1.png)
+
+#### 2.2.2. Palabras clave de cada tópico
+
+**Creación**
+
+Una vez formados los Tópicos (que solamente estan numerados), el siguiente paso fue ponerles un nombre descriptivo que exprese las notas que representan ese Tópico. Per se opto por no depender de un nombre manual y arriesgar no expresar de manera correcta el Tópico (aun leyendo cada artículo podrian haber errores o sesgos). 
+
+Aca entra en juego otra funcionalidad de BERTopic, la de buscar las palabras claves de cada Tópico. Se usara de manera que el nombre de cada uno este dado por sus propias palabras clave.
+Para calcular qué términos definen mejor a cada núcleo, primero BERTopic concatena todos los artículos asignados a un mismo tópico como si fueran un único gran documento y aplica **c-TF-IDF** (*Class-based TF-IDF*). Mientras que el TF-IDF clásico mide qué tan importante es una palabra dentro de un artículo frente a todos los demas, el `c-TF-IDF` mide qué tan característica es una palabra dentro de un tópico frente al resto. Así, palabras generales en los tópicos pierden peso y suben las que distinguen específicamente a esa tópico.
+
+Sin embargo, quedarse únicamente con los puntajes más altos de `c-TF-IDF` todavía tiene un punto débil: a veces premia términos demasiado puntuales que se repitieron mucho en una o dos crónicas muy largas del núcleo, pero que no representan al resto de los artículos del grupo. Para resolver esto se encadenó **`KeyBERTInspired`**, un paso de reordenamiento semántico que toma las mejores palabras candidatas de `c-TF-IDF`, calcula sus *embeddings* y mide qué tan cerca están del vector promedio (centroide) de todo el núcleo. De esta manera, las palabras clave finales no solo son frecuentes dentro de ese núcleo y raras en los demás, sino que reflejan el sentido global de todos los artículos que lo integran.
+
+![!\[C-TF-IDF\](../docs/UML/2.2.1.png)](../docs/UML/2.2.2.png)
+
+En el ejemplo, dividir la cantidad de veces que aparece cada palabra por el total de palabras del tópico ($\Vert{}tf_{x,c}\Vert{}$) sirve para trabajar con proporciones y compensar que un tópico tenga muchas más notas que otro. Por su parte, el logaritmo baja el puntaje de las palabras que aparecen repetidas por todo el archivo ($f_x$) frente al promedio de palabras por tópico ($A$). En el diagrama se ve bien qué pasa con la palabra en rojo (*crisis*): como aparece en notas de ambos tópicos (`N1` a `N4`), en el conteo suma **2** apariciones tanto en `T0` como en `T1`, empatando con las palabras propias de cada uno (*votar* en `T0` y *aborto* en `T1`). Pero al aplicar `c-TF-IDF`, como *crisis* está en ambos ($f_x = 4$), el cálculo la penaliza y su puntaje cae a **`0.31`** en los dos tópicos, mientras que las palabras que sí son exclusivas de cada tema quedan arriba con **`0.46`** y **`0.32`**. De esta manera, *crisis* queda afuera y los nombres se arman solo con los términos que realmente distinguen a cada tópico (`votar_deuda_ley` para `T0` y `aborto_mujer_marcha` para `T1`).
+
+**Uso en la iteración de Stopwords**
+
+Además, al revisar las primeras listas de palabras clave de cada tópico (en esta etapa todavía no habíamos armado nubes de palabras por tópico, sino que los inspeccionábamos directamente mediante gráficos de barras con los puntajes de relevancia), saltó un problema: aparecían términos con gran peso en varios núcleos a la vez, lo cual, aunque tuvieran mayor puntaje `c-TF-IDF`, no servía para entender de qué trataba cada uno.
+
+Para corregir esto se hizo un proceso iterativo: se revisaban los rankings de palabras de cada tópico, se anotaban los términos relevantes pero que abarcaban varios tópicos y se los agregaba en tandas sucesivas a las stopwords, cuidando de dejar afuera palabras que sí representen individualidad de los Tópicos.
+
+La comparación de los 6 tópicos con mayor volumen del modelo antes y después de ampliar las Stopwords muestra cómo este filtrado aclara que significa cada Tópico:
+
+| Tópico | Palabras clave antes (Stopwords generales) | Palabras clave después (agregando Stopwords) |
+| :--- | :--- | :--- |
+| **Tópico 00** | *político, política, candidato, electoral, campaña, votar* | *candidato, electoral, campaña, debate, votar, discurso* |
+| **Tópico 01** | *autor, escritor, literatura, novela, personaje, libro* | *literario, autor, escritor, poeta, protagonista, literatura* |
+| **Tópico 02** | *feminismo, feminista, aborto, político, política, debate* | *feminismo, feminista, aborto, abortar, patriarcado, debate* |
+| **Tópico 03** | *historia, vivir, hombre, vida, muerte, contar* | *muerto, dictadura, muerte, morir, desaparición, cuba* |
+| **Tópico 04** | *político, política, cambio, decir, además, seguir* | *ambiental, ambiente, crisis, proyecto, sociedad, futuro* |
+| **Tópico 05** | *economía, crisis, pobreza, económico, reforma, inflación* | *déficit, economía, pobreza, económico, fiscal, deuda* |
+
+En los Tópicos **03** y **04** aclaró de que trataban.
+
+*Esta ultima tabla se realizo utilizando nuestro ultimo modelo, por lo que no son exactamente los mismos tópicos con los que contabamos al realizar la iteración de las stopwords*
+
+#### 2.2.3. Fusión de tópicos
+
+Al terminar el agrupamiento inicial, el modelo devolvió una gran cantidad de tópicos muy chicos y específicos: temas grandes de la revista aparecían partidos en varios subgrupos según el enfoque o la coyuntura del momento (por ejemplo, notas sobre aborto separadas de feminismos, o literatura separada de cine y artes). Como tener decenas de micro-tópicos hacía difícil leer la evolución general de la revista y complicaba el recomendador, se aplicó un proceso de reducción en etapas hasta llegar a un mapa manejable sin perder coherencia.
+
+Primero se hizo una reducción automática inicial (`reduce_topics` en BERTopic), juntando los micro-grupos más cercanos hasta quedar con **41 tópicos base**. Sobre esos 41 tópicos se generó un **dendrograma jerárquico** (`hierarchical_topics`), un árbol que mide qué tan parecidos son los tópicos entre sí calculando la distancia coseno entre sus vectores de palabras `c-TF-IDF`: cuanto más abajo se unen dos ramas en el árbol, más parecido es el vocabulario que comparten.
+
+Con ese árbol como guía, se hicieron tres rondas de fusión manual revisando tanto la cercanía en el dendrograma como una muestra de los artículos y las palabras clave de cada grupo dudoso. Así se fueron uniendo pares y grupos que en el fondo hablaban de lo mismo —como feminismos y masculinidades con aborto y maternidad; literatura con arte y cine; pandemia y vacunas con sistema de salud; o conflictos en Medio Oriente con geopolítica rusa—. Las fusiones se frenaron al llegar a una distancia de **`0.4`** en el dendrograma, punto a partir del cual las ramas ya juntaban temáticas distintas que no convenía mezclar. De esta manera se consolidaron **22 tópicos temáticos** bien diferenciados.
+
+![Dendrograma jerárquico de tópicos](../outputs/bertopic_hibrido/graficos/arbol_cuarta.png)
