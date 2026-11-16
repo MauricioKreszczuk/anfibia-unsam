@@ -1,0 +1,29 @@
+@startuml docs/UML/2.1.2.png
+left to right direction
+skinparam dpi 300
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontSize 11
+skinparam nodesep 18
+skinparam ranksep 25
+
+title Tratamiento del Corpus inicial
+
+rectangle "<b>Base inicial</b>\n---\nposteos_anfibia.csv\n(3.622 notas)" as in
+
+package "Tratamiento y filtrado" {
+  rectangle "<b>1. Sin cuerpo</b>\nDescarta notas sin texto\n(-26 multimedia)" as f1
+  rectangle "<b>2. Duplicados y fechas</b>\nQuita versiones viejas (-N/),\nduplicados y fechas nulas" as f2
+  rectangle "<b>3. Idioma</b>\nConserva español\n(excluye inglés y francés)" as f3
+  rectangle "<b>4. Integración</b>\nUne título + copete +\ntagline + cuerpo" as f4
+}
+
+rectangle "<b>Corpus limpio</b>\n---\ncorpus_anfibia_limpio.csv\n(3.557 notas | -65 total)" as out
+
+in --> f1
+f1 --> f2
+f2 --> f3
+f3 --> f4
+f4 --> out
+
+@enduml
