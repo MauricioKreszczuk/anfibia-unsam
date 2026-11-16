@@ -220,12 +220,44 @@ En los Tópicos **03** y **04** aclaró de que trataban.
 
 *Esta ultima tabla se realizo utilizando nuestro ultimo modelo, por lo que no son exactamente los mismos tópicos con los que contabamos al realizar la iteración de las stopwords*
 
-#### 2.2.3. Fusión de tópicos
+#### 2.2.3. Reducción y fusión iterativa de tópicos
 
-Al terminar el agrupamiento inicial, el modelo devolvió una gran cantidad de tópicos muy chicos y específicos: temas grandes de la revista aparecían partidos en varios subgrupos según el enfoque o la coyuntura del momento (por ejemplo, notas sobre aborto separadas de feminismos, o literatura separada de cine y artes). Como tener decenas de micro-tópicos hacía difícil leer la evolución general de la revista y complicaba el recomendador, se aplicó un proceso de reducción en etapas hasta llegar a un mapa manejable sin perder coherencia.
+Al crear los Tópicos, se dejo que el modelo tuviera libertad de crear una gran cantidad de ellos para tener una gran granularidad, que cada Tópico tenga un significado individual. Sin embargo el numero fue demasiado grande (más de 70 Tópicos), lo cual dificultaba los análisis realizados con ellos.
+ Si se utiliza la reducción automática propia de BERTopic , el algoritmo fusiona tópicos según umbrales internos y suele mezclar Tópicos que en realidad se pueden interpretar como diferentes (ej: uno que habla de elecciones y otro que habla de la economia, ambos contienen palabras clave similares y por ello los une, aunque en realidad son diferentes). Se optó por dejar que el modelo siguiera detectando todos los núcleos iniciales sin límite, luego combinarlos automaticamente hasta 40 Tópicos. Por ultimo, evaluar esos 41 y decidir cuales unir de manera manual.
 
-Primero se hizo una reducción automática inicial (`reduce_topics` en BERTopic), juntando los micro-grupos más cercanos hasta quedar con **41 tópicos base**. Sobre esos 41 tópicos se generó un **dendrograma jerárquico** (`hierarchical_topics`), un árbol que mide qué tan parecidos son los tópicos entre sí calculando la distancia coseno entre sus vectores de palabras `c-TF-IDF`: cuanto más abajo se unen dos ramas en el árbol, más parecido es el vocabulario que comparten.
+Para decidir qué tópicos unir se utilizó **`visualize_hierarchy`**, una herramienta de BERTopic que aplica **clustering jerárquico aglomerativo** entre las representaciones `c-TF-IDF` de cada tópico. El resultado es un dendrograma donde la longitud de cada rama indica qué tan distintos son dos tópicos en términos sus palabras: las ramas que se unen más cerca de la base (menor distancia) son las que BERTOPIC considera candidatas a unirse.
 
-Con ese árbol como guía, se hicieron tres rondas de fusión manual revisando tanto la cercanía en el dendrograma como una muestra de los artículos y las palabras clave de cada grupo dudoso. Así se fueron uniendo pares y grupos que en el fondo hablaban de lo mismo —como feminismos y masculinidades con aborto y maternidad; literatura con arte y cine; pandemia y vacunas con sistema de salud; o conflictos en Medio Oriente con geopolítica rusa—. Las fusiones se frenaron al llegar a una distancia de **`0.4`** en el dendrograma, punto a partir del cual las ramas ya juntaban temáticas distintas que no convenía mezclar. De esta manera se consolidaron **22 tópicos temáticos** bien diferenciados.
+Entonces, se itero siguiendo dos verificaciones antes de aplicar **`merge_topics()`** (función que unifica los documentos de los tópicos seleccionados y vuelve a computar sus pesos `c-TF-IDF` y el reordenamiento con `KeyBERTInspired`):
 
-![Dendrograma jerárquico de tópicos](../outputs/bertopic_hibrido/graficos/arbol_cuarta.png)
+1. **Lectura del dendrograma:** Identificación de pares de Tópicos de ramas con menor distancia del coseno entre sus vectores `c-TF-IDF`.
+
+2. **Inspección de palabras clave:** Verificación de que los términos principales de ambos tópicos realmente tienen una tematica similar y no a fenómenos distintos que utilizan palabras similares.
+
+
+
+Finalmente se realizaron 4 iteraciones:
+
+| Etapa | Cantidad de tópicos |
+| --- | --- |
+| **Modelo Inicial** | 79 |
+| **1.ª fusión (automática)** | **40** |
+| **2.ª fusión** | **30** |
+| **3.ª fusión** | **27** |
+| **4.ª fusión (final)** | **22** |
+
+El proceso se detuvo en la 4ta fusión, al inspeccionar el dendrograma, las siguientes uniones implicaban distancias del coseno demasiado elevadas. Continuar habria unido Tópicos conceptualmente distantes, perdiendo la especificidad alcanzada.
+
+![Dendrograma de jerarquía de los 22 tópicos](../docs/figuras/dendrograma_topicos_final.png)
+
+En los pares con menor distancia del coseno, la cercanía responde a vocabulario similares pero cada Tópico mantiene una identidad propia que se perdería si se consolidaran.
+Por ejemplo, aunque los tópicos **04** y **05** aparecen próximos, al revisar los títulos y taglines de sus artículos se comprueba que abordan fenómenos diferenciados:
+
+* **Tópico 04 (`4_ambiental_ambiente_crisis`):** Temas territoriales, productivas y socioambientales.
+  * *"La reforma agraria de las mujeres guaraníes"*
+  * *"Epecuén jamás se inundaría"* — *Tagline: Adelanto*
+  * *"Copiapó: si la luz fuera líquida"* — *Tagline: Adelanto*
+* **Tópico 05 (`5_déficit_economía_pobreza`):** Análisis financieros, cambiarios y macroeconómicos.
+  * *"Todo sobre los buitres"* — *Tagline: Deuda externa*
+  * *"DÓLAR BLUE: LA CORRIDA QUE NO FUE"* — *Tagline: Mercados*
+  * *"Syriza: golpear y negociar"* — *Tagline: Crisis europea*
+
