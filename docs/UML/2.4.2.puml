@@ -1,0 +1,82 @@
+
+@startuml 2.4.2
+
+skinparam dpi 300
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 11
+skinparam roundcorner 10
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.5
+skinparam nodesep 35
+skinparam ranksep 40
+skinparam pageSize A4
+skinparam pageOrientation portrait
+
+<style>
+activityDiagram {
+  activity {
+    BackgroundColor #F8FAFC
+    BorderColor #64748B
+    FontColor #0F172A
+    RoundCorner 10
+  }
+  diamond {
+    BackgroundColor #F1F5F9
+    BorderColor #475569
+    FontColor #0F172A
+  }
+  .azul {
+    BackgroundColor #EFF6FF
+    BorderColor #2563EB
+  }
+  .amarillo {
+    BackgroundColor #FEFCE8
+    BorderColor #CA8A04
+  }
+  .verde {
+    BackgroundColor #D4EDDA
+    BorderColor #16A34A
+  }
+  .rojo {
+    BackgroundColor #F8D7DA
+    BorderColor #DC2626
+  }
+  .naranja {
+    BackgroundColor #FFF3CD
+    BorderColor #D97706
+  }
+}
+</style>
+
+title <b>Filtrado de etiquetas similares</b>
+
+start
+
+:<b>Etiquetas </b>;
+
+:<b>Comparación por pares
+<b>(sim. léxica ≥ 0,85, diacríticos o lemas); <<amarillo>>
+
+if (<b>¿Solo cambia tilde / #\n <b>o tienen el mismo lema?) then (Sí)
+  :<b>Unificación automática</b>; <<verde>>
+  detach
+else (No)
+  :<b>Embeddings; <<azul>>
+  if (<b>¿Sim. semántica\n <b>≥ 0,70?</b>) then (No)
+    :<b>Descartados</b>
+    <i>Distinto significado</i>; <<rojo>>
+    detach
+  else (Sí)
+    if (<b>¿Sim. léxica ≥ 0,93\n <b>y semántica ≥ 0,85?</b>) then (Sí)
+      :<b>Unificación automática; <<verde>>
+      detach
+    else (No)
+      :<b>Revisión manual</b>; <<naranja>>
+      detach
+    endif
+  endif
+endif
+
+@enduml

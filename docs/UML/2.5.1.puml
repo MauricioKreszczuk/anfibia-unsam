@@ -1,0 +1,87 @@
+@startuml 2.5.1
+
+skinparam dpi 300
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 11
+skinparam nodesep 25
+skinparam ranksep 20
+skinparam roundcorner 12
+skinparam linetype polyline
+
+skinparam arrow {
+  Color #475569
+  FontColor #1e293b
+  FontSize 10
+  Thickness 1.5
+}
+
+title <b>Funcionamiento del motor de recomendación</b>
+
+collections "<b>3.556 artículos</b> × <b>23 grupos</b> (22 tópicos + T100)" as paso1 #F8FAFC;line:64748B;line.bold
+
+file "<b>2. Tabla de distribución de tópicos (3.556 × 23)</b>\n<i>Peso de cada tópico dentro de cada artículo (approximate_distribution)</i>\n---\n|= doc_id |= Nota |= T02 |= ... |= T07 |= ... |= T100 |\n| 1028 | El ajuste que viene | 0,02 | ... | 0,04 | ... | 0,11 |\n| <color:#d62728><b>1029</b></color> | <color:#d62728><b>El comentario desubicado en el aula</b></color> | <color:#d62728><b>0,54</b></color> | ... | <color:#d62728><b>0,29</b></color> | ... | <color:#d62728>0,03</color> |\n| 1030 | La educación sexual | <b>0,51</b> | ... | <b>0,31</b> | ... | 0,05 |" as paso2 #EFF6FF;line:2563EB;line.bold
+
+together {
+  rectangle "<b>3a. Nota consultada</b>\n---\nFila <color:#d62728><b>1029</b></color>: <i>«El comentario desubicado en el aula»</i> (#8M)\n[ ..., <b>0,54</b> (T02), ..., <b>0,29</b> (T07), ... ]" as consulta #FEFCE8;line:CA8A04;line.bold
+
+  rectangle "<b>3b. Resto del archivo</b>\n---\nLas otras <b>3.555 filas</b>" as resto #F8FAFC;line:64748B;line.bold
+}
+
+rectangle "<b>4. Comparación por Similitud Coseno</b>\n---\nMide qué tan parecida es la mezcla de tópicos entre la nota <color:#d62728><b>1029</b></color> y cada una de las 3.555 notas\n<i>(1,00 = misma composición  |  0,00 = temas totalmente distintos)</i>" as paso4 #FAF5FF;line:7E22CE;line.dashed
+
+card "<b>5. Recomendaciones ordenadas de mayor a menor</b>\n---\n|= Rank |= Artículo recomendado |= Tagline |= Similitud |\n| <b>#1</b> | La educación sexual | <i>El mercado del sexo</i> | <b>0,9858</b> |\n| <b>#2</b> | Las insolentes | <i>La ola feminista en Chile</i> | <b>0,9845</b> |\n| <b>#3</b> | Sororidad en el cruce de saberes... | <i>Escuela Popular de Formación en Género</i> | <b>0,9722</b> |" as paso5 #F0FDF4;line:16A34A;line.bold
+
+paso1 -d-> paso2 : <b> Calcula el % de cada tópico por artículo</b>
+paso2 -d-> consulta : <b> Extrae fila elegida</b>
+paso2 -d-> resto : <b> Toma el resto</b>
+consulta -d-> paso4
+resto -d-> paso4
+paso4 -d-> paso5 : <b> Ordena por puntaje</b>
+
+@enduml
+' skinparam dpi 300
+' skinparam shadowing false
+' skinparam backgroundColor white
+' skinparam defaultFontName SansSerif
+' skinparam defaultFontSize 11
+' skinparam nodesep 25
+' skinparam ranksep 20
+' skinparam roundcorner 12
+' skinparam linetype polyline
+
+' skinparam arrow {
+'   Color #475569
+'   FontColor #1e293b
+'   FontSize 10
+'   Thickness 1.5
+' }
+
+' title <b>Funcionamiento del motor de recomendación</b>
+
+' collections "<b>3.556 artículos</b> × <b>23 grupos</b> (22 tópicos + T100)" as paso1 #F8FAFC;line:64748B;line.bold
+
+' file "<b>2. Tabla de distribución de tópicos (3.556 × 23)</b>\n<i>Peso de cada tópico dentro de cada artículo (approximate_distribution)</i>\n---\n|= doc_id |= Nota |= T0 (Política) |= ... |= T6 (Fútbol) |= ... |= T100 |\n| 149 | El ajuste que viene | <b>0,78</b> | ... | 0,01 | ... | 0,04 |\n| <color:#d62728><b>150</b></color> | <color:#d62728><b>Messi vació las calles</b></color> | <color:#d62728>0,01</color> | ... | <color:#d62728><b>0,84</b></color> | ... | <color:#d62728>0,02</color> |\n| 151 | Cruzamos el Rubicón | 0,02 | ... | <b>0,81</b> | ... | 0,03 |" as paso2 #EFF6FF;line:2563EB;line.bold
+
+' together {
+'   rectangle "<b>3a. Nota consultada</b>\n---\nFila <color:#d62728><b>150</b></color>: <i>«Messi vació las calles»</i>\n[ 0,01, ..., <b>0,84</b>, ..., 0,02 ]" as consulta #FEFCE8;line:CA8A04;line.bold
+
+'   rectangle "<b>3b. Resto del archivo</b>\n---\nLas otras <b>3.555 filas</b>" as resto #F8FAFC;line:64748B;line.bold
+' }
+
+' rectangle "<b>4. Comparación por Similitud Coseno</b>\n---\nMide qué tan parecida es la mezcla de tópicos entre la nota <color:#d62728><b>150</b></color> y cada una de las 3.555 notas\n<i>(1,00 = misma composición  |  0,00 = temas totalmente distintos)</i>" as paso4 #FAF5FF;line:7E22CE;line.dashed
+
+' card "<b>5. Recomendaciones ordenadas de mayor a menor</b>\n---\n|= Rank |= Artículo recomendado |= Tagline |= Similitud |\n| <b>#1</b> | Cruzamos el Rubicón | <i>Argentina vs Bélgica</i> | <b>0,9923</b> |\n| <b>#2</b> | Acá estoy yo, para salvarlos | <i>Messi, el redentor</i> | <b>0,9915</b> |\n| <b>#3</b> | La dificultad de ser mejor que los otros | <i>Anfibia en la Copa América</i> | <b>0,9914</b> |" as paso5 #F0FDF4;line:16A34A;line.bold
+' paso1 -d-> paso2 : <b> Calcula el % de cada tópico por artículo</b>
+' paso2 -d-> consulta : <b> Extrae fila elegida</b>
+' paso2 -d-> resto : <b> Toma el resto</b>
+' consulta -d-> paso4
+' resto -d-> paso4
+' paso4 -d-> paso5 : <b>  Ordena por puntaje</b>
+
+' @enduml
+
+
+
+

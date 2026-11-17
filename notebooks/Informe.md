@@ -358,3 +358,97 @@ Al revisar los datos aparecen tanto autores que suelen escribir sobre un mismo t
 | **02** (`feminismo_feminista_aborto`) | Luciana Peker | 10 | 13 | 76,9 % |
 | **05** (`déficit_economía_pobreza`) | Juan Pablo Bohoslavsky | 8 | 9 | 88,9 % |
 | **06** (`futbolista_fifa_fútbol`) | Alejandro Wall | 11 | 16 | 68,8 % |
+
+### 2.4. Etiquetas
+
+Cada artículo de la revista cuenta con categorías (`category`, presentes en el 100 % del archivo) y con etiquetas puestas a mano por los editores (`post_tag`) para marcar temas puntuales. Para evaluar cómo se usaron estas etiquetas a lo largo de los años y detectar problemas de consistencia, se realizó una auditoría dividida en cuatro partes.
+
+#### 2.4.1. Cobertura y dispersión de etiquetas
+
+De los **3.556** artículos del archivo limpio, **1.589 (44,7 %)** tienen al menos una etiqueta asignada y **1.967 (55,3 %)** no tienen ninguna. Al mirar la evolución por año, se observa el etiquetado comenzo a aumentar desde 2021, lo cual coincide con la incorporación de nuevos integrantes al equipo de Anfibia.
+
+![Artículos con y sin etiquetas por año](../outputs/figuras_informe/evolucion_etiquetado_anual.png)
+
+Aparecen **881 etiquetas únicas** en todo el corpus. Sin embargo, **444 de ellas (el 50,4 %)** se usaron en **un solo artículo** y nunca volvieron a utilizarse, mientras que unas pocas etiquetas generales concentran gran parte de las asignaciones (como *Internacional* con 238 notas, *Javier Milei* con 162 y *Derechas* con 114).
+
+Cuando se cruzan las etiquetas con los tópicos calculados mediante el **Ratio de Fragmentación** ($\text{RF} = \text{Etiquetas únicas} / \text{Notas con etiqueta en el tópico}$), se observa que en 18 de los Tópicos el valor es igual o superior a `1,00` —llegando a `2,33` en el tópico **15** (`urbano_ciudad_vecino_pueblo`) y `2,30` en el **16** (`astrónomo_universo_astrología_ciencia`)—. En el otro extremo, el tópico **21** (`papá_padre_abuelo_hermano`) registra el ratio más bajo (`0,08`), ya que casi todas sus notas comparten una misma etiqueta (*Día del Padre*), seguido por el tópico **0** (`candidato_electoral_campaña_debate`) con `0,77`.
+
+![Tópicos con mayor dispersión de etiquetas](../outputs/figuras_informe/ranking_fragmentacion_etiquetas.png)
+
+#### 2.4.2. Detección etiquetas repetidas
+
+Para identificar etiquetas distintas que en la práctica se refieren a lo mismo o son variantes una misma, se aplicaron dos análisis complementarios:
+
+1. **Etiquetas distintas sobre Tópicos similares:** Usando la distribución de probabilidad de los 22 tópicos en cada nota, se calculó el perfil temático promedio de cada etiqueta (promediando las notas por Tópico) y se compararon entre sí mediante similitud coseno ($\ge 0,85$). Se detectaron **14.081 pares** que apuntan al mismo grupo de temas (por ejemplo, *Qatar 2022*, *Scaloneta*, *Messi* y *Selección Argentina*, con similitud de `0,998`). Además, se compararon los *embeddings* de las **444 etiquetas de uso único** contra las **437 etiquetas frecuentes** para sugerir a cuál podrían unificarse.
+
+2. **Errores de tipeo, tildes y plurales:** Se compararon los pares de etiquetas por similitud de caracteres, aparecieron **51 pares casi idénticos** (como *Crisiis Climática* vs. *Crisis Climática* o *Gabrielboric* vs. *Gabriel Boric*). Como comparar solo letras puede juntar por error palabras parecidas que significan cosas distintas (como *Periodismo* y *Peronismo*), se aplicó ademas un filtro en tres pasos:
+   - **Tildes y plurales:** Se quitaron tildes y signos `#` para detectar diferencias de acentuación (*Mexico* / *México*, *Iran* / *Irán*) y las lematizo para detectar singular y plural (*Adolescencias* / *Adolescencia*), eligiendo como forma correcta la versión con tilde y sin `#`.
+   - **Filtro con *embeddings*:** Para el resto de los pares parecidos, se calculó la similitud coseno entre sus *embeddings* (sin lematizar) y se descartaron los pares con similitud menor a `0,70` para evitar etiquetas que implican diferentes cosas.
+
+Los casos seguros se marcaron para unificarse automáticamente y los dudosos se separaron para revisión manual.
+
+<div style="display: flex; align-items: center; gap: 0px;">
+  <img src="../docs/UML/2.4.2.png" width="65%" />
+  <img src="../docs/UML/2.4.2-2.png" width="25%" />
+</div>
+
+De los **51 pares** iniciales encontrados, el filtro descartó **20** y dividió los **31 válidos** en dos grupos:
+
+| Resultado | Cantidad de pares | Ejemplos detectados (`Variante` $\rightarrow$ `Canónico`) |
+| :--- | :---: | :--- |
+| **Fusiones automáticas** | **26** | *Mexico* $\rightarrow$ *México*, *Religion* $\rightarrow$ *Religión*, *Crisiis Climática* $\rightarrow$ *Crisis Climática*, *Gabrielboric* $\rightarrow$ *Gabriel Boric* |
+| **Revisión manual** | **5** | *Arte* $\rightarrow$ *Artes*, *Neoliberalismo* $\rightarrow$ *Liberalismo*, *Madres De Plaza De Mayo* $\rightarrow$ *Abuelas De Plaza De Mayo* |
+
+
+### 2.5. Motor de recomendación de artículos (`notebooks/07`)
+
+Se construyó un recomendador basado en los Tópicos encontrados, que funciona en tres pasos:
+
+1. **Distribución de tópicos por nota:** En lugar de mirar únicamente el tópico mas cercano de cada artículo, se calculó un vector de probabilidades con el peso que tiene cada uno de los 23 Tópicos (los 22 tópicos temáticos más el Tópico 100) dentro de cada nota, formando una matriz de **3.556 × 23**.
+
+2. **Similitud coseno:** Al elegir un artículo de consulta, se toma su vector de 23 probabilidades y se calcula la similitud coseno contra los vectores de todos los demás artículos del archivo.
+
+3. **Ranking de recomendaciones:** Se ordenan los artículos de mayor a menor similitud y se devuelven los más cercanos.
+
+<p align="center">
+  <img src="../docs/UML/2.5.1.png" alt="Diagrama del motor de recomendación">
+</p>
+
+
+#### Caso de prueba en detalle: *El comentario desubicado en el aula* (`doc_id = 1029`)
+
+Para probar el funcionamiento del recomendador sobre una nota que no este tan dominada por un solo Tópico, se uso el artículo *El comentario desubicado en el aula* (`doc_id = 1029`), cuyo tópico principal es **02** (`feminismo_feminista_aborto`), pero que también tiene un peso relevante en el tópico **07** (`pedagógico_enseñanza_escolar`).
+
+Al rankear el archivo por similitud, los primeros resultados hablan de los mismos temas, incluso notas que habían quedado asignadas al **Tópico 100** (*La educación sexual* en primer lugar, con similitud `0,9858`) o al **Tópico 07: pedagógico, enseñanza, escolar** (*Sororidad en el cruce de saberes populares y académicos*, en tercer lugar):
+
+| Rank | Título | Tagline | Tópico dominante | Etiquetas | Similitud |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| 1 | *La educación sexual* | El mercado del sexo | `100_outliers_miscelaneo` | Sin etiquetas | 0,9858 |
+| 2 | *Las insolentes* | La ola feminista en Chile | `2_feminismo_feminista_aborto` | Sin etiquetas | 0,9845 |
+| 3 | *Sororidad en el cruce de saberes populares y académicos* | Escuela Popular de Formación en Género | `7_pedagógico_enseñanza_escolar` | Feminismos; Territorio Educativo | 0,9722 |
+| 4 | *Manual de instrucciones para hablar con E* | Lenguaje inclusivo | `100_outliers_miscelaneo` | Feminismos; Lenguaje inclusivo | 0,9722 |
+| 5 | *"Mostramos lo que queremos, y que se jodan"* | Las pibas, la ropa, la escuela | `7_pedagógico_enseñanza_escolar` | Sin etiquetas | 0,9709 |
+
+
+En los mapas siguientes se observa la ubicación del artículo consultado (diamante rojo) y sus 10 recomendaciones tanto en el **espacio de *embeddings*** como en el **espacio de probabilidades de Tópicos** (proyecciones UMAP 2D):
+
+![Ubicación en el espacio de embeddings](../outputs/figuras_informe/recomendador_mapa_embeddings.png)
+
+![Ubicación en el espacio temático](../outputs/figuras_informe/recomendador_mapa_tematico.png)
+
+Finalmente, se contrasta la distrubucion de Tópicos del artículo consultado frente a la recomendación **#1** y la **#10**, se verifica cómo se preservan la mezcla de tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el decimo:
+
+![Comparación con la recomendación #1](../outputs/figuras_informe/recomendador_composicion_topicos_rec1.png)
+
+![Comparación con la recomendación #10](../outputs/figuras_informe/recomendador_composicion_topicos_rec10.png)
+
+---
+
+## 3. Conclusiones y Líneas Futuras
+
+
+1. **Tópicos:** A parti de los primeros modelos hasta el actual, se redujo la proporción de artículos sin tópico asignado del **35,1 % al 15,0 %** (534 publicaciones reunidas en el **Tópico 100**). El 85 % restante quedó organizado en **22 tópicos bien definidos**, capaces de reflejar los principales ejes temáticos de las notas (política, literatura, feminismos, justicia, economía, etc.).
+
+2. **Etiquetado:** Si bien la carga de etiquetas fue aumentando en los años más recientes, hay una importante cantidad de artículos sin etiquetar y una elevada fragmentación (etiquetas utilizados una única vez, variantes, etc). Aunque en este trabajo se identificaron mecanismos concretos para depurar y consolidarlas, aún se requiere trabajo adicional y queda supeditada a los criterios editoriales que *Revista Anfibia* decida adoptar.
+
+3. **Recomendación:** Se logra vincular publicaciones aunque su Tópico principal sea diferente incluso cuando quedaron en el **Tópico 100**. Asimismo, se evaluó incorporar la similitud directa sobre los *embeddings* de los textos para complementar este cálculo, pero se postergó al no contar aún con una métrica objetiva para medir la calidad de cada recomendación; como línea futura, se plantea utilizar modelos de lenguaje (LLMs) para puntuar automáticamente los resultados.
