@@ -7,17 +7,17 @@ skinparam defaultFontSize 11
 skinparam nodesep 18
 skinparam ranksep 25
 
-title Creación de Tópicos (BERTOPIC)
+title Creación de Tópicos (BERTopic)
 
-rectangle "<b>Embeddings</b>\n---\n3.557 artículos × 384D\n(MiniLM-L12-v2 sobre texto\nNO-lematizado)" as emb
+rectangle "<b>Embeddings</b>\n---\n3.556 artículos × 384D\n(MiniLM-L12-v2 sobre texto\nsin lematizar)" as emb
 
-rectangle "<b>UMAP</b>\n---\n• Une cada artículo con\n  sus 15 más parecidos\n• Comprime de 384D a 5D" as umap
+rectangle "<b>UMAP</b>\n---\n• Agrupa cada artículo con\n  sus 15 más parecidos\n• Comprime de 384D a 5D" as umap
 
 rectangle "<b>HDBSCAN</b>\n---\n• Detecta zonas densas\n  (mín. 3 notas cercanas)\n• Exige al menos 10 notas\n  para crear un tópico" as hdb
 
 package "Salida" {
-  rectangle "<b>Tópicos base (0..N)</b>\nNúcleos temáticos alredor de los cuales \n se hallan densamente artículos" as ok
-  rectangle "<b>Outliers (Tópico -1)</b>\nNotas que no eran lo suficientemente\nsimilares a los Tópicos" as out
+  rectangle "<b>Outliers (Tópico -1)</b>\nNotas dispersas que no alcanzan\ndensidad suficiente para formar tópico" as out
+  rectangle "<b>Tópicos base (0..N)</b>\nNúcleos temáticos alrededor de los cuales\nse concentran los artículos" as ok
 }
 
 emb --> umap

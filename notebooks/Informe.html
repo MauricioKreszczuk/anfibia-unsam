@@ -988,6 +988,98 @@ Se evaluaron dos estrategias para integrar parte de estos documentos sin degrada
 </tr>
 </tbody>
 </table>
+<h3 id="25-motor-de-recomendación-de-artículos-notebooks07">2.5. Motor de recomendación de artículos (<code>notebooks/07</code>)</h3>
+<p>Se construyó un recomendador basado en los Tópicos encontrados, que funciona en tres pasos:</p>
+<ol>
+<li>
+<p><strong>Distribución de tópicos por nota:</strong> En lugar de mirar únicamente el tópico mas cercano de cada artículo, se calculó un vector de probabilidades con el peso que tiene cada uno de los 23 Tópicos (los 22 tópicos temáticos más el Tópico 100) dentro de cada nota, formando una matriz de <strong>3.556 × 23</strong>.</p>
+</li>
+<li>
+<p><strong>Similitud coseno:</strong> Al elegir un artículo de consulta, se toma su vector de 23 probabilidades y se calcula la similitud coseno contra los vectores de todos los demás artículos del archivo.</p>
+</li>
+<li>
+<p><strong>Ranking de recomendaciones:</strong> Se ordenan los artículos de mayor a menor similitud y se devuelven los más cercanos.</p>
+</li>
+</ol>
+<p align="center">
+  <img src="file:///c:\Trabajos\anfibia-unsam\docs\UML\2.5.1.png" alt="Diagrama del motor de recomendación">
+</p>
+<h4 id="caso-de-prueba-en-detalle-el-comentario-desubicado-en-el-aula-doc_id--1029">Caso de prueba en detalle: <em>El comentario desubicado en el aula</em> (<code>doc_id = 1029</code>)</h4>
+<p>Para probar el funcionamiento del recomendador sobre una nota que no este tan dominada por un solo Tópico, se uso el artículo <em>El comentario desubicado en el aula</em> (<code>doc_id = 1029</code>), cuyo tópico principal es <strong>02</strong> (<code>feminismo_feminista_aborto</code>), pero que también tiene un peso relevante en el tópico <strong>07</strong> (<code>pedagógico_enseñanza_escolar</code>).</p>
+<p>Al rankear el archivo por similitud, los primeros resultados hablan de los mismos temas, incluso notas que habían quedado asignadas al <strong>Tópico 100</strong> (<em>La educación sexual</em> en primer lugar, con similitud <code>0,9858</code>) o al <strong>Tópico 07: pedagógico, enseñanza, escolar</strong> (<em>Sororidad en el cruce de saberes populares y académicos</em>, en tercer lugar):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">Rank</th>
+<th style="text-align:left">Título</th>
+<th style="text-align:left">Tagline</th>
+<th style="text-align:left">Tópico dominante</th>
+<th style="text-align:left">Etiquetas</th>
+<th style="text-align:center">Similitud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:left"><em>La educación sexual</em></td>
+<td style="text-align:left">El mercado del sexo</td>
+<td style="text-align:left"><code>100_outliers_miscelaneo</code></td>
+<td style="text-align:left">Sin etiquetas</td>
+<td style="text-align:center">0,9858</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:left"><em>Las insolentes</em></td>
+<td style="text-align:left">La ola feminista en Chile</td>
+<td style="text-align:left"><code>2_feminismo_feminista_aborto</code></td>
+<td style="text-align:left">Sin etiquetas</td>
+<td style="text-align:center">0,9845</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:left"><em>Sororidad en el cruce de saberes populares y académicos</em></td>
+<td style="text-align:left">Escuela Popular de Formación en Género</td>
+<td style="text-align:left"><code>7_pedagógico_enseñanza_escolar</code></td>
+<td style="text-align:left">Feminismos; Territorio Educativo</td>
+<td style="text-align:center">0,9722</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:left"><em>Manual de instrucciones para hablar con E</em></td>
+<td style="text-align:left">Lenguaje inclusivo</td>
+<td style="text-align:left"><code>100_outliers_miscelaneo</code></td>
+<td style="text-align:left">Feminismos; Lenguaje inclusivo</td>
+<td style="text-align:center">0,9722</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:left"><em>&quot;Mostramos lo que queremos, y que se jodan&quot;</em></td>
+<td style="text-align:left">Las pibas, la ropa, la escuela</td>
+<td style="text-align:left"><code>7_pedagógico_enseñanza_escolar</code></td>
+<td style="text-align:left">Sin etiquetas</td>
+<td style="text-align:center">0,9709</td>
+</tr>
+</tbody>
+</table>
+<p>En los mapas siguientes se observa la ubicación del artículo consultado (diamante rojo) y sus 10 recomendaciones tanto en el <strong>espacio de <em>embeddings</em></strong> como en el <strong>espacio de probabilidades de Tópicos</strong> (proyecciones UMAP 2D):</p>
+<p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_mapa_embeddings.png" alt="Ubicación en el espacio de embeddings"></p>
+<p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_mapa_tematico.png" alt="Ubicación en el espacio temático"></p>
+<p>Finalmente, se contrasta la distrubucion de Tópicos del artículo consultado frente a la recomendación <strong>#1</strong> y la <strong>#10</strong>, se verifica cómo se preservan la mezcla de tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el decimo:</p>
+<p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_composicion_topicos_rec1.png" alt="Comparación con la recomendación #1"></p>
+<p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_composicion_topicos_rec10.png" alt="Comparación con la recomendación #10"></p>
+<hr>
+<h2 id="3-conclusiones-y-líneas-futuras">3. Conclusiones y Líneas Futuras</h2>
+<ol>
+<li>
+<p><strong>Tópicos:</strong> A parti de los primeros modelos hasta el actual, se redujo la proporción de artículos sin tópico asignado del <strong>35,1 % al 15,0 %</strong> (534 publicaciones reunidas en el <strong>Tópico 100</strong>). El 85 % restante quedó organizado en <strong>22 tópicos bien definidos</strong>, capaces de reflejar los principales ejes temáticos de las notas (política, literatura, feminismos, justicia, economía, etc.).</p>
+</li>
+<li>
+<p><strong>Etiquetado:</strong> Si bien la carga de etiquetas fue aumentando en los años más recientes, hay una importante cantidad de artículos sin etiquetar y una elevada fragmentación (etiquetas utilizados una única vez, variantes, etc). Aunque en este trabajo se identificaron mecanismos concretos para depurar y consolidarlas, aún se requiere trabajo adicional y queda supeditada a los criterios editoriales que <em>Revista Anfibia</em> decida adoptar.</p>
+</li>
+<li>
+<p><strong>Recomendación:</strong> Se logra vincular publicaciones aunque su Tópico principal sea diferente incluso cuando quedaron en el <strong>Tópico 100</strong>. Asimismo, se evaluó incorporar la similitud directa sobre los <em>embeddings</em> de los textos para complementar este cálculo, pero se postergó al no contar aún con una métrica objetiva para medir la calidad de cada recomendación; como línea futura, se plantea utilizar modelos de lenguaje (LLMs) para puntuar automáticamente los resultados.</p>
+</li>
+</ol>
 
             <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
             <script async type="text/javascript">
