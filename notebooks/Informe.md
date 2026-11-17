@@ -149,7 +149,7 @@ Se muestra la comparación de la nube de palabras (tamaño decidido por frecuenc
 
 **Sin lematizar**
 
-![Nube sin lematizar — Política y Economía](../docs/figuras/wordcloud_politica_sin_lematizar.png)
+![Nube sin lematizar — Política y Economía](../outputs/figuras_informe/wordcloud_politica_sin_lematizar.png)
 
 </div>
 
@@ -247,7 +247,7 @@ Finalmente se realizaron 4 iteraciones:
 
 El proceso se detuvo en la 4ta fusión, al inspeccionar el dendrograma, las siguientes uniones implicaban distancias del coseno demasiado elevadas. Continuar habria unido Tópicos conceptualmente distantes, perdiendo la especificidad alcanzada.
 
-![Dendrograma de jerarquía de los 22 tópicos](../docs/figuras/dendrograma_topicos_final.png)
+![Dendrograma de jerarquía de los 22 tópicos](../outputs/figuras_informe/dendrograma_topicos_final.png)
 
 En los pares con menor distancia del coseno, la cercanía responde a vocabulario similares pero cada Tópico mantiene una identidad propia que se perdería si se consolidaran.
 Por ejemplo, aunque los tópicos **04** y **05** aparecen próximos, al revisar los títulos y taglines de sus artículos se comprueba que abordan fenómenos diferenciados:
@@ -272,7 +272,7 @@ Se evaluaron dos estrategias para integrar parte de estos documentos sin degrada
 
 Se decidio optar por la segunda opción. Lo cual redujo los Outliers:
 
-![Proporción de artículos asignados frente a outliers antes y después del umbral](../docs/figuras/proporcion_outliers.png)
+![Proporción de artículos asignados frente a outliers antes y después del umbral](../outputs/figuras_informe/proporcion_outliers.png)
 
 
 Con ello, los Tópicos finales son:
@@ -308,3 +308,53 @@ Finalmente, se inspeccionaron los artículos que permanecieron por debajo del um
 | Tópico | Palabras clave principales | Artículos|
 | :--- | :--- | :---: |
 | **100** | *padre, hombre, pueblo, causa, humano, género* | 534 |
+
+
+#### 2.3. Exploración de los Tópicos
+
+Una vez consolidados los 22 tópicos temáticos y el Tópico 100, se analizaron los resultados desde tres perspectivas: la distribución espacial de los artículos, su evolución temporal y como afecta a la autoria.
+
+##### 2.3.1. Proyección bidimensional del espacio semántico
+
+Para visualizar cómo se agrupan y se relacionan los **3.556** artículos segun sus Tópicos, se proyectaron sus embeddings (texto sin lematizar) de 384 dimensiones a un plano 2D mediante `UMAP` (`n_neighbors=15`, `min_dist=0.0`, métrica del coseno y `random_state=42`). Sobre cada Tópico se identificó además su **artículo más representativo** (el documento con mayor similitud del coseno respecto al centroide del tópico).
+
+![Mapa de artículos en 2D mediante UMAP](../outputs/figuras_informe/mapa_topicos_turbo_hd.png)
+
+La proyección permite observar tres comportamientos:
+
+* **Tópicos bien separados:** Los tópicos con vocabularios forman grupos compactos y claramente diferenciados del resto. Lo que no significa que no esten cerca y en ciertos momentos se cruzen con otros.
+* **Tópicos proximos:** Los tópicos de temas similares como política electoral (**00**), economía (**05**), justicia (**11**) y medios (**09**)— aparecen contiguos en el plano, reflejando el cruce o como un artículo no esta limitado a un solo Tópico.
+* **Tópico 100:** Los 534 artículos outliers no forman un grupo separado, sino que se distribuyen entre distintos tópicos, lo cual tiene sentido pues son los que no tenian cercania suficiente para pertenecer a un Tópico.
+
+##### 2.3.2. Evolución temporal y picos
+
+Para estudiar cómo cambiaron los temas de la revista a lo largo del tiempo, se aplicó `topics_over_time` (otra funcion de BERTopic) dividiendo el período 2012–2026 en **40 ventanas temporales**.
+
+Ademas se buscaron los **picos locales y máximos históricos** (ventanas donde la cantidad de publicaciones supera a las ventanas vecinas y al promedio histórico del tópico), asociando cada pico con sus tres artículos más cercanos al centroide semántico de ese período.
+
+![Evolución temporal de los tópicos principales](../outputs/figuras_informe/evolucion_temporal_topicos.png)
+
+El gráfico compara la evolución de dos tópicos con comportamientos bien marcados:
+
+**Tópico 02 (`feminismo_feminista_aborto`):** Presenta actividad sostenida desde 2015 y alcanza su pico máximo en mayo de 2018, en coincidencia con el debate por la IVE, manteniendo luego una presencia regular.
+
+**Tópico 08 (`epidemia_pandemia_vacunar`):** Se mantiene en valores mínimos hasta 2019 y registra un pico en **febrero de 2020** (**41** artículos), concentrando su volumen durante la pandemia de COVID-19 para luego descender de forma gradual.
+
+| Tópico | Pico máximo | Frecuencia | Artículo representativo | Tagline |
+| :--- | :---: | :---: | :--- | :--- |
+| **02** *(feminismo_feminista_aborto)* | 2018-05 | 43 | *Aborto es lengua popular* | Después del 8A |
+| **08** *(epidemia_pandemia_vacunar)* | 2020-02 | 41 | *Sabía que ibas a reaccionar así* | Cómo nos comportamos ante la flexibilización |
+
+##### 2.3.3. Análisis de autores por tópico
+
+Para ver qué escribe cada autor, se separaron los nombres de la columna `autor_names` (para contar por separado a cada autor cuando una nota fue escrita entre dos o más personas) y se cruzó cada autor con el tópico de sus artículos. Con eso se calculó cuántas notas tiene cada uno en cada tópico y qué porcentaje representa sobre el total de notas que escribió en Anfibia.
+
+Al revisar los datos aparecen tanto autores que suelen escribir sobre un mismo tópico —como **Juan Pablo Bohoslavsky** o **Esteban De Gori**— como otros cuyas publicaciones se reparten entre varios tópicos.
+
+| Tópico | Autor destacado | Notas en el tópico | Total de notas del autor | % en el tópico |
+| :--- | :--- | :---: | :---: | :---: |
+| **00** (`candidato_electoral_campaña`) | Esteban De Gori | 22 | 27 | 81,5 % |
+| **01** (`literario_autor_escritor`) | Julieta Greco | 12 | 23 | 52,2 % |
+| **02** (`feminismo_feminista_aborto`) | Luciana Peker | 10 | 13 | 76,9 % |
+| **05** (`déficit_economía_pobreza`) | Juan Pablo Bohoslavsky | 8 | 9 | 88,9 % |
+| **06** (`futbolista_fifa_fútbol`) | Alejandro Wall | 11 | 16 | 68,8 % |
