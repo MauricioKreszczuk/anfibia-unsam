@@ -1,8 +1,10 @@
 # Informe Final - Proyecto Anfibia
 
-  ## Introducción al proyecto
+## Introducción al proyecto
 
-Este proyecto surge a partir de una colaboración entre el Centro de Inteligencia Artificial Interdisciplinario (CIAI) de la UNSAM y *Revista Anfibia*, que facilitó la base de datos de su archivo web con el objetivo de explorar y ordenar sus publicaciones mediante técnicas de Procesamiento de Lenguaje Natural (NLP).
+Este proyecto surge a partir de una colaboración entre el Centro de Inteligencia Artificial Interdisciplinario (CIAI) de la UNSAM y [*Revista Anfibia*](https://www.revistaanfibia.com/), que facilitó la base de datos de su archivo web con el objetivo de explorar y analizar sus publicaciones mediante técnicas de Procesamiento de Lenguaje Natural (NLP).
+
+Todo el código, los notebooks y la documentación técnica del flujo de trabajo se encuentran disponibles en el repositorio del proyecto: [https://github.com/MauricioKreszczuk/anfibia-unsam](https://github.com/MauricioKreszczuk/anfibia-unsam)
 
 ## 1. Objetivos originales planteados
 
@@ -162,7 +164,7 @@ El objetivo del modelado de tópicos es descubrir los núcleos temáticos reales
 
 Antes de llegar a este modelo, se probaron otros enfoques basados únicamente en conteo de palabras (como LDA) y modelos de *embeddings* en español. El problema de usar solo el conteo de palabras es que dos artículos sobre el mismo tema pueden usar vocabularios muy distintos, por lo que se descartó LDA. Por otro lado, si se usan únicamente *embeddings* (agrupando notas), se consiguen tópicos coherentes pero el modelo no devuelve por sí solo una manera de explicar de qué trata cada uno.
 
-Por eso se recurrió a **BERTopic**, que además de la creación de tópicos nos proporciona la extracción de palabras clave y otras funcionalidades. En esta primera etapa, para detectar los Tópicos se calcularon *embeddings* sobre el texto original sin lematizar usando el modelo `paraphrase-multilingual-MiniLM-L12-v2`, de manera que tiene en cuenta la estructura de las oraciones y el contexto de las palabras en ellas, algo que se pierde con la lematización. Como cada artículo queda representado en un espacio de 384 dimensiones (sus embeddings), primero se comprimieron esos vectores con `UMAP` conservando tanto la cercanía entre notas parecidas como la estructura general.
+Por eso se recurrió a **BERTopic**, que además de la creación de tópicos nos proporciona la extracción de palabras clave y otras funcionalidades. En esta primera etapa, para detectar los Tópicos se calcularon *embeddings* (embeddings, ver Anexo A.1) sobre el texto original sin lematizar usando el modelo `paraphrase-multilingual-MiniLM-L12-v2`, de manera que tiene en cuenta la estructura de las oraciones y el contexto de las palabras en ellas, algo que se pierde con la lematización. Como cada artículo queda representado en un espacio de 384 dimensiones (sus embeddings), primero se comprimieron esos vectores con `UMAP` conservando tanto la cercanía entre notas parecidas como la estructura general.
 
 Sobre ese espacio reducido se aplicó el algoritmo de agrupamiento por densidad `HDBSCAN` (`min_cluster_size=10`, `min_samples=3`). A diferencia de otros métodos que exigen fijar de antemano cuántos tópicos existen y obligan a meter cada artículo en alguno aunque no encaje, `HDBSCAN` busca zonas donde se acumula una alta densidad de artículos similares entre sí, permitiendo que cada tópico decida sus artículos. Además, deja un tópico aparte (`-1`) todas las notas demasiado específicas que no encajan claramente en ningún Tópico; esto evita contaminar los principales y mejora la calidad de las palabras clave extraídas para cada tópico.
 
@@ -182,7 +184,7 @@ Una vez formados los tópicos (que inicialmente solo cuentan con un identificado
 
 Aquí entra en juego otra funcionalidad de BERTopic: la extracción automática de palabras clave para cada tópico, de modo que su nombre quede definido por sus propios términos más representativos. Para calcular qué términos definen mejor a cada núcleo, primero BERTopic concatena todos los artículos asignados a un mismo tópico como si fueran un único documento y aplica **c-TF-IDF** (*Class-based TF-IDF*). Mientras que el TF-IDF clásico mide qué tan importante es una palabra dentro de un artículo frente al resto del corpus, `c-TF-IDF` mide qué tan importante es una palabra dentro de un tópico frente a los demás. De este modo, las palabras transversales (en varios tópicos) pierden peso y ganan relevancia aquellas que distinguen específicamente a cada tópico.
 
-Sin embargo, quedarse únicamente con los puntajes más altos de `c-TF-IDF` presenta una limitación: en ocasiones premia términos muy puntuales que se repitieron con frecuencia en una o dos crónicas extensas, pero que no representan al resto de los artículos del núcleo. Para resolverlo, se agregó **`KeyBERTInspired`**, un paso que toma las mejores palabras candidatas de `c-TF-IDF`, calcula sus *embeddings* y mide su cercanía con respecto al vector promedio (centroide) de todo el tópico. Así, las palabras clave finales no solo son frecuentes dentro de ese núcleo y poco habituales en los demás, sino que reflejan el sentido global de todos los artículos que lo integran.
+Sin embargo, quedarse únicamente con los puntajes más altos de `c-TF-IDF` presenta una limitación: en ocasiones premia términos muy puntuales que se repitieron con frecuencia en una o dos crónicas extensas, pero que no representan al resto de los artículos del núcleo. Para resolverlo, se agregó **`KeyBERTInspired`**, un paso que toma las mejores palabras candidatas de `c-TF-IDF`, calcula sus *embeddings* y mide su cercanía con respecto al centroide (centroide, ver Anexo A.2) de todo el tópico. Así, las palabras clave finales no solo son frecuentes dentro de ese núcleo y poco habituales en los demás, sino que reflejan el sentido global de todos los artículos que lo integran.
 
 <p align="center">
   <img src="../docs/UML/2.2.2.png" alt="Diagrama del cálculo de c-TF-IDF">
@@ -221,7 +223,7 @@ Para decidir qué tópicos unir se utilizó **`visualize_hierarchy`**, una herra
 
 De este modo, se iteró aplicando dos verificaciones antes de ejecutar **`merge_topics()`** (función que unifica los documentos de los tópicos seleccionados y recalcula sus palabras clave):
 
-1. **Lectura del dendrograma:** Identificación de pares de Tópicos de ramas con menor distancia del coseno entre sus vectores `c-TF-IDF`.
+1. **Lectura del dendrograma:** Identificación de pares de Tópicos de ramas con menor distancia del coseno (sim. y dist. coseno, ver Anexo A.3) entre sus vectores `c-TF-IDF`.
 
 2. **Inspección de palabras clave:** Verificación de que los términos principales de ambos tópicos realmente tienen una tematica similar y no a fenómenos distintos que utilizan palabras similares.
 
@@ -433,7 +435,7 @@ En los mapas siguientes se observa la ubicación del artículo consultado (diama
 
 En el mapa por *embeddings* las 10 recomendaciones (círculos amarillos) se reparten en dos zonas distintas: la mayoría rodea al artículo consultado (diamante rojo) dentro del área de **`Tópico 2_feminismo_feminista_aborto`**, mientras que otro grupo aparece más arriba, dentro de **`Tópico 7_pedagógico_enseñanza_escolar`**. En cambio, al proyectar el espacio de distribución de tópicos —que es el que utiliza el recomendador—, todos los artículos sugeridos quedan agrupados de forma compacta junto al artículo original, exactamente en la zona de transición entre ambos núcleos temáticos. Esto muestra cómo el sistema puede recomendar notas que semánticamente están en regiones diferentes pero que hablen de los mismos temas.
 
-Finalmente, se contrasta la distrubucion de Tópicos del artículo consultado frente a la recomendación **#1** y la **#10**, se verifica cómo se preservan los tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el décimo:
+Finalmente, se contrasta la distribución de Tópicos del artículo consultado frente a la recomendación **#1** y la **#10**, se verifica cómo se preservan los tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el décimo:
 
 ![Comparación con la recomendación #1](../outputs/figuras_informe/recomendador_composicion_topicos_rec1.png)
 
@@ -454,29 +456,32 @@ De forma complementaria al análisis, se desarrolló y desplegó un informe inte
 
 Cabe aclarar que esta versión desplegada funciona sobre una **iteración previa del modelo de tópicos** y del proyecto en general, por lo que actúa como un prototipo de validación.
 
-## 3. Aprendizajes
 
-Este proyecto permitió poner en práctica herramientas y conceptos centrales de la Ciencia de Datos sobre un caso de estudio real:
 
-- **Datos y gobernanza:** Trabajar con datos reales de una página web permitió denotar la importancia de la limpieza, el filtrado y la aplicación de criterios estrictos de privacidad para lo que se muestra de manera pública y antes de entrenar cualquier modelo.
-
-- **NLP aplicado:** La lematización con spaCy, el diseño de stopwords y la experimentación con BERTopic, UMAP y HDBSCAN fueron herramientas personalmente nunca antes usadas, que requieren un ajuste fino constante, control y validación métrica y visual. Todo esto se comprendió en profundidad al elaborar el proyecto.
-
-- **Trabajo interdisciplinario:** La interacción con el equipo de *Revista Anfibia* marcó la necesidad de una comunicación constante. Por ejemplo, respecto a las etiquetas, estas respondían a decisiones editoriales específicas, por lo cual no se podía simplemente borrarlas o cambiarlas de forma automatizada sin consultar lo que opinaban.
-
-## 6. Conclusiones y Líneas Futuras
+## 3. Conclusiones y Líneas Futuras
 
 
 1. **Tópicos:** Desde los primeros modelos hasta el final, se redujo la proporción de artículos sin tópico asignado del **35,1 % al 15,0 %** (534 notas reunidas en el **Tópico 100**). El **85,0 %** restante quedó organizado en **22 tópicos bien definidos**, que reflejan los principales ejes de la revista (política, literatura, feminismos, justicia, economía, etc.). A futuro, queda pendiente seguir refinando los tópicos y analizar qué efecto tiene incluir el **Tópico 100** en el cálculo de las distribuciones y en los análisis posteriores.
 
 2. **Etiquetado:** Todavía hay muchos artículos sin etiquetar y una fragmentación muy alta. Aunque en este proyecto se probaron formas concretas de limpiarlas y agruparlas, hace falta más trabajo y definir criterios claros junto a *Revista Anfibia*.
 
-3. **Recomendación:** Se logró vincular notas relacionadas mediante sus distribuciones de tópicos aunque su tópico principal sea distinto, incluso cuando cayeron en el **Tópico 100**. También se evaluó sumar la similitud directa entre los *embeddings* de los textos para complementar el cálculo, pero se dejó de lado por no tener todavía una métrica objetiva para evaluar qué tan buena es cada recomendación; como idea, se plantea usar modelos de lenguaje (LLMs) para crear esta métrica.
+3. **Recomendación:** Se logró recomendar notas relacionadas mediante sus distribuciones de tópicos aunque su tópico principal sea distinto, incluso cuando cayeron en el **Tópico 100**. También se evaluó sumar la similitud directa entre los *embeddings* de los textos para complementar el cálculo, pero se dejó de lado por no tener todavía una métrica objetiva para evaluar qué tan buena es cada recomendación; como idea, se plantea usar modelos de lenguaje (LLMs) para crear esta métrica.
 
+Aparte de las mejoras del trabajo realizado, queda pensar en la integración en la página web de *Revista Anfibia*. Eso tendrá que esperar a que lo demás esté completamente definido como prototipo; luego, mediante la elaboración de una API (o alguna otra alternativa, todavía no definida), deberá integrarse a la web.
+
+## 4. Aprendizajes
+
+Este proyecto permitió poner en práctica herramientas y conceptos centrales de la Ciencia de Datos sobre un caso de estudio real:
+
+- **Datos y gobernanza:** Trabajar con datos reales de una página web permitió dimensionar la importancia de la limpieza, el filtrado y la aplicación de criterios estrictos de privacidad para lo que se muestra de manera pública y antes de entrenar cualquier modelo.
+
+- **NLP aplicado:** La lematización con spaCy, el diseño de stopwords y la experimentación con BERTopic, UMAP y HDBSCAN fueron herramientas personalmente nunca antes usadas, que requieren un ajuste fino constante, control y validación métrica y visual. Todo esto se comprendió en profundidad al elaborar el proyecto.
+
+- **Trabajo interdisciplinario:** La interacción con el equipo de *Revista Anfibia* marcó la necesidad de una comunicación constante. Por ejemplo, respecto a las etiquetas, estas respondían a decisiones editoriales específicas, por lo cual no se podía simplemente borrarlas o cambiarlas de forma automatizada sin consultar lo que opinaban.
 
 ---
 
-## Anexo: Algunos conceptos matemáticos utilizados
+## Anexo: Algunos conceptos
 
 Son conceptos que atraviesan varias partes del informe de diferentes maneras.
 
@@ -509,7 +514,7 @@ Donde $N$ es la cantidad de artículos del grupo y $\vec{v}_i$ el vector de cada
 
 ![Representación geométrica del centroide](../outputs/figuras_informe/anexo_centroide.png)
 
-### A.3. Similitud del coseno
+### A.3. Similitud y distancia coseno
 
 La similitud del coseno mide qué tan parecidos son dos vectores mirando el **ángulo** que forman entre sí, sin importar su magnitud:
 
@@ -522,3 +527,9 @@ El resultado varía entre **0** y **1** para frecuencias o probabilidades (o ent
 * **Cercano a `0`:** Son perpendiculares entre sí (no comparten relación).
 
 ![Representación geométrica de la similitud del coseno](../outputs/figuras_informe/anexo_similitud_coseno.png)
+
+A partir de esta medida se define también la **distancia del coseno** (las proyecciones UMAP y en los dendrogramas), que simplemente invierte:
+
+$$\text{Dist}(\vec{A}, \vec{B}) = 1 - \text{Sim}(\vec{A}, \vec{B})$$
+
+De este modo, cuando dos vectores son idénticos en dirección ($\text{Sim} = 1$), su distancia es **`0`**, y a medida que divergen, la distancia aumenta.

@@ -223,7 +223,8 @@ aside > *:last-child {
             <span id="markdown-mermaid" aria-hidden="true" data-config="{&quot;darkModeTheme&quot;:&quot;vscode&quot;,&quot;lightModeTheme&quot;:&quot;vscode&quot;,&quot;maxTextSize&quot;:50000,&quot;clickDrag&quot;:&quot;alt&quot;,&quot;showControls&quot;:&quot;onHoverOrFocus&quot;,&quot;resizable&quot;:true,&quot;maxHeight&quot;:&quot;&quot;}"></span>
 				<h1 id="informe-final---proyecto-anfibia">Informe Final - Proyecto Anfibia</h1>
 <h2 id="introducción-al-proyecto">Introducción al proyecto</h2>
-<p>Este proyecto surge a partir de una colaboración entre el Centro de Inteligencia Artificial Interdisciplinario (CIAI) de la UNSAM y <em>Revista Anfibia</em>, que facilitó la base de datos de su archivo web con el objetivo de explorar y ordenar sus publicaciones mediante técnicas de Procesamiento de Lenguaje Natural (NLP).</p>
+<p>Este proyecto surge a partir de una colaboración entre el Centro de Inteligencia Artificial Interdisciplinario (CIAI) de la UNSAM y <a href="https://www.revistaanfibia.com/"><em>Revista Anfibia</em></a>, que facilitó la base de datos de su archivo web con el objetivo de explorar y analizar sus publicaciones mediante técnicas de Procesamiento de Lenguaje Natural (NLP).</p>
+<p>Todo el código, los notebooks y la documentación técnica del flujo de trabajo se encuentran disponibles en el repositorio del proyecto: <a href="https://github.com/MauricioKreszczuk/anfibia-unsam">https://github.com/MauricioKreszczuk/anfibia-unsam</a></p>
 <h2 id="1-objetivos-originales-planteados">1. Objetivos originales planteados</h2>
 <p>A partir de un análisis preliminar del archivo proporcionado por la revista, se definieron cuatro objetivos concretos de trabajo (desarrollados en detalle en las secciones siguientes):</p>
 <ul>
@@ -515,7 +516,7 @@ aside > *:last-child {
 <p>El objetivo del modelado de tópicos es descubrir los núcleos temáticos reales alrededor de los cuales se concentran los artículos, sin depender de una asignación manual. Contar con ellos permite analizar cómo evolucionó <em>Revista Anfibia</em> a lo largo de los años y establecer una base sobre la cual desarrollar un sistema de recomendación por similitud temática.</p>
 <h4 id="221-tópicos-con-bertopic">2.2.1. Tópicos con BerTopic</h4>
 <p>Antes de llegar a este modelo, se probaron otros enfoques basados únicamente en conteo de palabras (como LDA) y modelos de <em>embeddings</em> en español. El problema de usar solo el conteo de palabras es que dos artículos sobre el mismo tema pueden usar vocabularios muy distintos, por lo que se descartó LDA. Por otro lado, si se usan únicamente <em>embeddings</em> (agrupando notas), se consiguen tópicos coherentes pero el modelo no devuelve por sí solo una manera de explicar de qué trata cada uno.</p>
-<p>Por eso se recurrió a <strong>BERTopic</strong>, que además de la creación de tópicos nos proporciona la extracción de palabras clave y otras funcionalidades. En esta primera etapa, para detectar los Tópicos se calcularon <em>embeddings</em> sobre el texto original sin lematizar usando el modelo <code>paraphrase-multilingual-MiniLM-L12-v2</code>, de manera que tiene en cuenta la estructura de las oraciones y el contexto de las palabras en ellas, algo que se pierde con la lematización. Como cada artículo queda representado en un espacio de 384 dimensiones (sus embeddings), primero se comprimieron esos vectores con <code>UMAP</code> conservando tanto la cercanía entre notas parecidas como la estructura general.</p>
+<p>Por eso se recurrió a <strong>BERTopic</strong>, que además de la creación de tópicos nos proporciona la extracción de palabras clave y otras funcionalidades. En esta primera etapa, para detectar los Tópicos se calcularon <em>embeddings</em> (embeddings, ver Anexo A.1) sobre el texto original sin lematizar usando el modelo <code>paraphrase-multilingual-MiniLM-L12-v2</code>, de manera que tiene en cuenta la estructura de las oraciones y el contexto de las palabras en ellas, algo que se pierde con la lematización. Como cada artículo queda representado en un espacio de 384 dimensiones (sus embeddings), primero se comprimieron esos vectores con <code>UMAP</code> conservando tanto la cercanía entre notas parecidas como la estructura general.</p>
 <p>Sobre ese espacio reducido se aplicó el algoritmo de agrupamiento por densidad <code>HDBSCAN</code> (<code>min_cluster_size=10</code>, <code>min_samples=3</code>). A diferencia de otros métodos que exigen fijar de antemano cuántos tópicos existen y obligan a meter cada artículo en alguno aunque no encaje, <code>HDBSCAN</code> busca zonas donde se acumula una alta densidad de artículos similares entre sí, permitiendo que cada tópico decida sus artículos. Además, deja un tópico aparte (<code>-1</code>) todas las notas demasiado específicas que no encajan claramente en ningún Tópico; esto evita contaminar los principales y mejora la calidad de las palabras clave extraídas para cada tópico.</p>
 <p>Con esos parámetros se buscó que el modelo identifique Tópicos muy definidos aunque no lleguen a tener un gran número de notas.</p>
 <p><em>Nota: Cada artículo posee una distribución de los tópicos, es decir, un porcentaje de que tanto de cada tópico posee. Se toma que un artículo pertenece a cierto Tópico cuando ese es el que mayor porcentaje tiene.</em></p>
@@ -526,7 +527,7 @@ aside > *:last-child {
 <p><strong>Creación</strong></p>
 <p>Una vez formados los tópicos (que inicialmente solo cuentan con un identificador numérico), el siguiente paso fue asignarles un nombre que refleje las notas que representan. Se optó por no redactar nombres manualmente para evitar errores de interpretación o sesgos, aun habiendo leído una muestra de los artículos de cada uno.</p>
 <p>Aquí entra en juego otra funcionalidad de BERTopic: la extracción automática de palabras clave para cada tópico, de modo que su nombre quede definido por sus propios términos más representativos. Para calcular qué términos definen mejor a cada núcleo, primero BERTopic concatena todos los artículos asignados a un mismo tópico como si fueran un único documento y aplica <strong>c-TF-IDF</strong> (<em>Class-based TF-IDF</em>). Mientras que el TF-IDF clásico mide qué tan importante es una palabra dentro de un artículo frente al resto del corpus, <code>c-TF-IDF</code> mide qué tan importante es una palabra dentro de un tópico frente a los demás. De este modo, las palabras transversales (en varios tópicos) pierden peso y ganan relevancia aquellas que distinguen específicamente a cada tópico.</p>
-<p>Sin embargo, quedarse únicamente con los puntajes más altos de <code>c-TF-IDF</code> presenta una limitación: en ocasiones premia términos muy puntuales que se repitieron con frecuencia en una o dos crónicas extensas, pero que no representan al resto de los artículos del núcleo. Para resolverlo, se agregó <strong><code>KeyBERTInspired</code></strong>, un paso que toma las mejores palabras candidatas de <code>c-TF-IDF</code>, calcula sus <em>embeddings</em> y mide su cercanía con respecto al vector promedio (centroide) de todo el tópico. Así, las palabras clave finales no solo son frecuentes dentro de ese núcleo y poco habituales en los demás, sino que reflejan el sentido global de todos los artículos que lo integran.</p>
+<p>Sin embargo, quedarse únicamente con los puntajes más altos de <code>c-TF-IDF</code> presenta una limitación: en ocasiones premia términos muy puntuales que se repitieron con frecuencia en una o dos crónicas extensas, pero que no representan al resto de los artículos del núcleo. Para resolverlo, se agregó <strong><code>KeyBERTInspired</code></strong>, un paso que toma las mejores palabras candidatas de <code>c-TF-IDF</code>, calcula sus <em>embeddings</em> y mide su cercanía con respecto al centroide (centroide, ver Anexo A.2) de todo el tópico. Así, las palabras clave finales no solo son frecuentes dentro de ese núcleo y poco habituales en los demás, sino que reflejan el sentido global de todos los artículos que lo integran.</p>
 <p align="center">
   <img src="file:///c:\Trabajos\anfibia-unsam\docs\UML\2.2.2.png" alt="Diagrama del cálculo de c-TF-IDF">
 </p>
@@ -585,7 +586,7 @@ aside > *:last-child {
 <p>De este modo, se iteró aplicando dos verificaciones antes de ejecutar <strong><code>merge_topics()</code></strong> (función que unifica los documentos de los tópicos seleccionados y recalcula sus palabras clave):</p>
 <ol>
 <li>
-<p><strong>Lectura del dendrograma:</strong> Identificación de pares de Tópicos de ramas con menor distancia del coseno entre sus vectores <code>c-TF-IDF</code>.</p>
+<p><strong>Lectura del dendrograma:</strong> Identificación de pares de Tópicos de ramas con menor distancia del coseno (sim. y dist. coseno, ver Anexo A.3) entre sus vectores <code>c-TF-IDF</code>.</p>
 </li>
 <li>
 <p><strong>Inspección de palabras clave:</strong> Verificación de que los términos principales de ambos tópicos realmente tienen una tematica similar y no a fenómenos distintos que utilizan palabras similares.</p>
@@ -1064,7 +1065,7 @@ Se evaluaron dos estrategias para integrar parte de estos documentos sin degrada
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_mapa_embeddings.png" alt="Ubicación en el espacio de embeddings"></p>
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_mapa_tematico.png" alt="Ubicación en el espacio temático"></p>
 <p>En el mapa por <em>embeddings</em> las 10 recomendaciones (círculos amarillos) se reparten en dos zonas distintas: la mayoría rodea al artículo consultado (diamante rojo) dentro del área de <strong><code>Tópico 2_feminismo_feminista_aborto</code></strong>, mientras que otro grupo aparece más arriba, dentro de <strong><code>Tópico 7_pedagógico_enseñanza_escolar</code></strong>. En cambio, al proyectar el espacio de distribución de tópicos —que es el que utiliza el recomendador—, todos los artículos sugeridos quedan agrupados de forma compacta junto al artículo original, exactamente en la zona de transición entre ambos núcleos temáticos. Esto muestra cómo el sistema puede recomendar notas que semánticamente están en regiones diferentes pero que hablen de los mismos temas.</p>
-<p>Finalmente, se contrasta la distrubucion de Tópicos del artículo consultado frente a la recomendación <strong>#1</strong> y la <strong>#10</strong>, se verifica cómo se preservan los tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el décimo:</p>
+<p>Finalmente, se contrasta la distribución de Tópicos del artículo consultado frente a la recomendación <strong>#1</strong> y la <strong>#10</strong>, se verifica cómo se preservan los tópicos principales en el primero y comienza a variar gradualmente en los tópicos secundarios en el décimo:</p>
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_composicion_topicos_rec1.png" alt="Comparación con la recomendación #1"></p>
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\recomendador_composicion_topicos_rec10.png" alt="Comparación con la recomendación #10"></p>
 <h3 id="26-aplicación-web-interactiva-streamlit">2.6. Aplicación web interactiva (Streamlit)</h3>
@@ -1084,20 +1085,7 @@ Se evaluaron dos estrategias para integrar parte de estos documentos sin degrada
 </li>
 </ol>
 <p>Cabe aclarar que esta versión desplegada funciona sobre una <strong>iteración previa del modelo de tópicos</strong> y del proyecto en general, por lo que actúa como un prototipo de validación.</p>
-<h2 id="3-aprendizajes">3. Aprendizajes</h2>
-<p>Este proyecto permitió poner en práctica herramientas y conceptos centrales de la Ciencia de Datos sobre un caso de estudio real:</p>
-<ul>
-<li>
-<p><strong>Datos y gobernanza:</strong> Trabajar con datos reales de una página web permitió denotar la importancia de la limpieza, el filtrado y la aplicación de criterios estrictos de privacidad para lo que se muestra de manera pública y antes de entrenar cualquier modelo.</p>
-</li>
-<li>
-<p><strong>NLP aplicado:</strong> La lematización con spaCy, el diseño de stopwords y la experimentación con BERTopic, UMAP y HDBSCAN fueron herramientas personalmente nunca antes usadas, que requieren un ajuste fino constante, control y validación métrica y visual. Todo esto se comprendió en profundidad al elaborar el proyecto.</p>
-</li>
-<li>
-<p><strong>Trabajo interdisciplinario:</strong> La interacción con el equipo de <em>Revista Anfibia</em> marcó la necesidad de una comunicación constante. Por ejemplo, respecto a las etiquetas, estas respondían a decisiones editoriales específicas, por lo cual no se podía simplemente borrarlas o cambiarlas de forma automatizada sin consultar lo que opinaban.</p>
-</li>
-</ul>
-<h2 id="6-conclusiones-y-líneas-futuras">6. Conclusiones y Líneas Futuras</h2>
+<h2 id="3-conclusiones-y-líneas-futuras">3. Conclusiones y Líneas Futuras</h2>
 <ol>
 <li>
 <p><strong>Tópicos:</strong> Desde los primeros modelos hasta el final, se redujo la proporción de artículos sin tópico asignado del <strong>35,1 % al 15,0 %</strong> (534 notas reunidas en el <strong>Tópico 100</strong>). El <strong>85,0 %</strong> restante quedó organizado en <strong>22 tópicos bien definidos</strong>, que reflejan los principales ejes de la revista (política, literatura, feminismos, justicia, economía, etc.). A futuro, queda pendiente seguir refinando los tópicos y analizar qué efecto tiene incluir el <strong>Tópico 100</strong> en el cálculo de las distribuciones y en los análisis posteriores.</p>
@@ -1106,11 +1094,25 @@ Se evaluaron dos estrategias para integrar parte de estos documentos sin degrada
 <p><strong>Etiquetado:</strong> Todavía hay muchos artículos sin etiquetar y una fragmentación muy alta. Aunque en este proyecto se probaron formas concretas de limpiarlas y agruparlas, hace falta más trabajo y definir criterios claros junto a <em>Revista Anfibia</em>.</p>
 </li>
 <li>
-<p><strong>Recomendación:</strong> Se logró vincular notas relacionadas mediante sus distribuciones de tópicos aunque su tópico principal sea distinto, incluso cuando cayeron en el <strong>Tópico 100</strong>. También se evaluó sumar la similitud directa entre los <em>embeddings</em> de los textos para complementar el cálculo, pero se dejó de lado por no tener todavía una métrica objetiva para evaluar qué tan buena es cada recomendación; como idea, se plantea usar modelos de lenguaje (LLMs) para crear esta métrica.</p>
+<p><strong>Recomendación:</strong> Se logró recomendar notas relacionadas mediante sus distribuciones de tópicos aunque su tópico principal sea distinto, incluso cuando cayeron en el <strong>Tópico 100</strong>. También se evaluó sumar la similitud directa entre los <em>embeddings</em> de los textos para complementar el cálculo, pero se dejó de lado por no tener todavía una métrica objetiva para evaluar qué tan buena es cada recomendación; como idea, se plantea usar modelos de lenguaje (LLMs) para crear esta métrica.</p>
 </li>
 </ol>
+<p>Aparte de las mejoras del trabajo realizado, queda pensar en la integración en la página web de <em>Revista Anfibia</em>. Eso tendrá que esperar a que lo demás esté completamente definido como prototipo; luego, mediante la elaboración de una API (o alguna otra alternativa, todavía no definida), deberá integrarse a la web.</p>
+<h2 id="4-aprendizajes">4. Aprendizajes</h2>
+<p>Este proyecto permitió poner en práctica herramientas y conceptos centrales de la Ciencia de Datos sobre un caso de estudio real:</p>
+<ul>
+<li>
+<p><strong>Datos y gobernanza:</strong> Trabajar con datos reales de una página web permitió dimensionar la importancia de la limpieza, el filtrado y la aplicación de criterios estrictos de privacidad para lo que se muestra de manera pública y antes de entrenar cualquier modelo.</p>
+</li>
+<li>
+<p><strong>NLP aplicado:</strong> La lematización con spaCy, el diseño de stopwords y la experimentación con BERTopic, UMAP y HDBSCAN fueron herramientas personalmente nunca antes usadas, que requieren un ajuste fino constante, control y validación métrica y visual. Todo esto se comprendió en profundidad al elaborar el proyecto.</p>
+</li>
+<li>
+<p><strong>Trabajo interdisciplinario:</strong> La interacción con el equipo de <em>Revista Anfibia</em> marcó la necesidad de una comunicación constante. Por ejemplo, respecto a las etiquetas, estas respondían a decisiones editoriales específicas, por lo cual no se podía simplemente borrarlas o cambiarlas de forma automatizada sin consultar lo que opinaban.</p>
+</li>
+</ul>
 <hr>
-<h2 id="anexo-algunos-conceptos-matemáticos-utilizados">Anexo: Algunos conceptos matemáticos utilizados</h2>
+<h2 id="anexo-algunos-conceptos">Anexo: Algunos conceptos</h2>
 <p>Son conceptos que atraviesan varias partes del informe de diferentes maneras.</p>
 <h3 id="a1-embeddings">A.1. <em>Embeddings</em></h3>
 <p>Un <em><strong>embedding</strong></em> transforma una palabra, frase o artículo completo (texto en general) en un vector numérico de tamaño fijo (en este trabajo, de <strong>384 dimensiones</strong> generadas con <code>paraphrase-multilingual-MiniLM-L12-v2</code>).</p>
@@ -1153,7 +1155,7 @@ c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></spa
 </li>
 </ul>
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\anexo_centroide.png" alt="Representación geométrica del centroide"></p>
-<h3 id="a3-similitud-del-coseno">A.3. Similitud del coseno</h3>
+<h3 id="a3-similitud-y-distancia-coseno">A.3. Similitud y distancia coseno</h3>
 <p>La similitud del coseno mide qué tan parecidos son dos vectores mirando el <strong>ángulo</strong> que forman entre sí, sin importar su magnitud:</p>
 <section><eqn><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>Sim</mtext><mo stretchy="false">(</mo><mover accent="true"><mi>A</mi><mo>⃗</mo></mover><mo separator="true">,</mo><mover accent="true"><mi>B</mi><mo>⃗</mo></mover><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><mover accent="true"><mi>A</mi><mo>⃗</mo></mover><mo>⋅</mo><mover accent="true"><mi>B</mi><mo>⃗</mo></mover></mrow><mrow><mi mathvariant="normal">∥</mi><mover accent="true"><mi>A</mi><mo>⃗</mo></mover><mi mathvariant="normal">∥</mi><mtext> </mtext><mi mathvariant="normal">∥</mi><mover accent="true"><mi>B</mi><mo>⃗</mo></mover><mi mathvariant="normal">∥</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">\text{Sim}(\vec{A}, \vec{B}) = \frac{\vec{A} \cdot \vec{B}}{\|\vec{A}\| \, \|\vec{B}\|}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.21633em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Sim</span></span><span class="mopen">(</span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9663299999999999em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.25233em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.09660999999999997em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg width='0.471em' height='0.714em' style='width:0.471em' viewBox='0 0 471 714' preserveAspectRatio='xMinYMin'><path d='M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
 3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
@@ -1202,6 +1204,33 @@ c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></spa
 </li>
 </ul>
 <p><img src="file:///c:\Trabajos\anfibia-unsam\outputs\figuras_informe\anexo_similitud_coseno.png" alt="Representación geométrica de la similitud del coseno"></p>
+<p>A partir de esta medida se define también la <strong>distancia del coseno</strong> (las proyecciones UMAP y en los dendrogramas), que simplemente invierte:</p>
+<section><eqn><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>Dist</mtext><mo stretchy="false">(</mo><mover accent="true"><mi>A</mi><mo>⃗</mo></mover><mo separator="true">,</mo><mover accent="true"><mi>B</mi><mo>⃗</mo></mover><mo stretchy="false">)</mo><mo>=</mo><mn>1</mn><mo>−</mo><mtext>Sim</mtext><mo stretchy="false">(</mo><mover accent="true"><mi>A</mi><mo>⃗</mo></mover><mo separator="true">,</mo><mover accent="true"><mi>B</mi><mo>⃗</mo></mover><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\text{Dist}(\vec{A}, \vec{B}) = 1 - \text{Sim}(\vec{A}, \vec{B})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.21633em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Dist</span></span><span class="mopen">(</span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9663299999999999em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.25233em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.09660999999999997em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg width='0.471em' height='0.714em' style='width:0.471em' viewBox='0 0 471 714' preserveAspectRatio='xMinYMin'><path d='M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
+3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
+10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63
+-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1
+-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59
+H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359
+c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9663299999999999em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span></span><span style="top:-3.25233em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.15216em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg width='0.471em' height='0.714em' style='width:0.471em' viewBox='0 0 471 714' preserveAspectRatio='xMinYMin'><path d='M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
+3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
+10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63
+-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1
+-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59
+H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359
+c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.72777em;vertical-align:-0.08333em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.21633em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Sim</span></span><span class="mopen">(</span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9663299999999999em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.25233em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.09660999999999997em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg width='0.471em' height='0.714em' style='width:0.471em' viewBox='0 0 471 714' preserveAspectRatio='xMinYMin'><path d='M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
+3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
+10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63
+-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1
+-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59
+H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359
+c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9663299999999999em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span></span><span style="top:-3.25233em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.15216em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg width='0.471em' height='0.714em' style='width:0.471em' viewBox='0 0 471 714' preserveAspectRatio='xMinYMin'><path d='M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
+3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
+10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63
+-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1
+-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59
+H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359
+c-16-25.333-24-45-24-59z'/></svg></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></eqn></section></math>
+<p>De este modo, cuando dos vectores son idénticos en dirección (<eq><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext>Sim</mtext><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\text{Sim} = 1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord text"><span class="mord">Sim</span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span></span></span></span></eq>), su distancia es <strong><code>0</code></strong>, y a medida que divergen, la distancia aumenta.</p>
 
             <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
             <script async type="text/javascript">
