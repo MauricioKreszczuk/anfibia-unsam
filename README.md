@@ -1,4 +1,4 @@
-# Proyecto Anfibia — Cartografía de Tópicos y Recomendador de Notas
+# Proyecto Anfibia
 
 Proyecto desarrollado como materia optativa en el marco de la **Licenciatura en Ciencia de Datos (ECyT - UNSAM)**, llevado adelante por **Mauricio Kreszczuk** junto a **Manuel Szewc** y **Natalia Debandi**, integrantes del  **Centro de Inteligencia Artificial Interdisciplinario (CIAI)**, en colaboración con **Revista Anfibia**.
 
